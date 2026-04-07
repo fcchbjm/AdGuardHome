@@ -19,9 +19,6 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/aghslog"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghtls"
 	"github.com/AdguardTeam/AdGuardHome/internal/client"
-	"github.com/AdguardTeam/dnsproxy/proxy"
-	"github.com/AdguardTeam/dnsproxy/ratelimit"
-	"github.com/AdguardTeam/dnsproxy/upstream"
 	"github.com/AdguardTeam/golibs/container"
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
@@ -30,6 +27,9 @@ import (
 	"github.com/AdguardTeam/golibs/timeutil"
 	"github.com/AdguardTeam/golibs/validate"
 	"github.com/ameshkov/dnscrypt/v2"
+	"github.com/fcchbjm/dnsproxy/proxy"
+	"github.com/fcchbjm/dnsproxy/ratelimit"
+	"github.com/fcchbjm/dnsproxy/upstream"
 )
 
 // Config represents the DNS filtering configuration of AdGuard Home.  The zero
