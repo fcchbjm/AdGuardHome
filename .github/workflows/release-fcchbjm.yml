@@ -87,12 +87,13 @@
         'path': '~/.npm'
         'key': "${{ runner.os }}-node-${{ hashFiles('client/package-lock.json') }}"
         'restore-keys': '${{ runner.os }}-node-'
-    # SIGN=0：跳过官方发行链中的 GPG 分离签名与 Windows 可执行文件签名（需 GPG_KEY、
-    # SIGNER_API_KEY 等）。版本号仍由 go-build 的 -ldflags 写入二进制，与是否签名无关。
+    # VERSION：用 tag 名作为发行号。须配合 make -e：Makefile 里写了 VERSION=v0.0.0，
+    # GNU Make 默认不会用环境变量覆盖该赋值；不设 -e 时会仍用 v0.0.0 并调用 version.sh → git describe（fork 上易失败）。
+    # SIGN=0：跳过 GPG / Windows 可执行文件签名。
     - 'name': 'Build release archives'
-      'run': >
-        make SIGN=0 VERBOSE=1 CHANNEL=release
-        deps build-release
+      'env':
+        'VERSION': '${{ github.ref_name }}'
+      'run': 'make -e SIGN=0 VERBOSE=1 CHANNEL=release deps build-release'
     - 'name': 'Publish GitHub Release'
       'uses': 'softprops/action-gh-release@v2'
       'with':

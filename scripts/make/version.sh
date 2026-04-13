@@ -110,11 +110,14 @@ case "$channel" in
 'beta' | 'release')
 	# current_desc is the description of the current git commit.  If the
 	# current commit is tagged, git describe will show the tag.
-	current_desc="$(git describe)"
+	#
+	# Use --tags so that lightweight tags (e.g. GitHub “Release” default) are
+	# considered; plain git describe only uses annotated tags.
+	current_desc="$(git describe --tags --always)"
 	readonly current_desc
 
 	# last_tag is the most recent git tag.
-	last_tag="$(git describe --abbrev=0)"
+	last_tag="$(git describe --tags --abbrev=0)"
 	readonly last_tag
 
 	# Require an actual tag for the beta and final releases.
@@ -131,7 +134,7 @@ case "$channel" in
 	# candidate builds.
 
 	# last_tag is expected to be the latest release tag.
-	last_tag="$(git describe --abbrev=0)"
+	last_tag="$(git describe --tags --abbrev=0)"
 	readonly last_tag
 
 	# current_branch is the name of the branch currently checked out.
