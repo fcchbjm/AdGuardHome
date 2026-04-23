@@ -104,6 +104,14 @@ type Config struct {
 	// empty slice for this field makes Proxy not trust any address.
 	TrustedProxies []netutil.Prefix `yaml:"trusted_proxies"`
 
+	// TCPProxyProtocolV2Enabled defines if plain DNS-over-TCP listeners require
+	// Proxy Protocol v2 headers.
+	TCPProxyProtocolV2Enabled bool `yaml:"tcp-proxy-protocol-v2"`
+
+	// TLSProxyProtocolV2Enabled defines if DNS-over-TLS listeners require Proxy
+	// Protocol v2 headers before TLS handshake.
+	TLSProxyProtocolV2Enabled bool `yaml:"tls-proxy-protocol-v2"`
+
 	// DNS cache settings
 
 	// CacheEnabled defines if the DNS cache should be used.
@@ -348,6 +356,8 @@ func (s *Server) newProxyConfig(ctx context.Context) (conf *proxy.Config, err er
 		Logger:                    s.baseLogger.With(slogutil.KeyPrefix, aghslog.PrefixDNSProxy),
 		RefuseAny:                 srvConf.RefuseAny,
 		TrustedProxies:            netutil.SliceSubnetSet(trustedPrefixes),
+		TCPProxyProtocolV2Enabled: srvConf.TCPProxyProtocolV2Enabled,
+		TLSProxyProtocolV2Enabled: srvConf.TLSProxyProtocolV2Enabled,
 		CacheMinTTL:               srvConf.CacheMinTTL,
 		CacheMaxTTL:               srvConf.CacheMaxTTL,
 		CacheOptimistic:           srvConf.CacheOptimistic,
