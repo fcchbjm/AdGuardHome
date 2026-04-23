@@ -477,13 +477,15 @@ var config = &configuration{
 		BindHosts: []netip.Addr{netip.IPv4Unspecified()},
 		Port:      defaultPortDNS,
 		Config: dnsforward.Config{
-			Ratelimit:              20,
-			RatelimitSubnetLenIPv4: 24,
-			RatelimitSubnetLenIPv6: 56,
-			RefuseAny:              true,
-			UpstreamMode:           dnsforward.UpstreamModeLoadBalance,
-			HandleDDR:              true,
-			FastestTimeout:         timeutil.Duration(fastip.DefaultPingWaitTimeout),
+			Ratelimit:                 20,
+			RatelimitSubnetLenIPv4:    24,
+			RatelimitSubnetLenIPv6:    56,
+			RefuseAny:                 true,
+			UpstreamMode:              dnsforward.UpstreamModeLoadBalance,
+			HandleDDR:                 true,
+			FastestTimeout:            timeutil.Duration(fastip.DefaultPingWaitTimeout),
+			TCPProxyProtocolV2Enabled: false,
+			TLSProxyProtocolV2Enabled: false,
 
 			TrustedProxies: []netutil.Prefix{{
 				Prefix: netip.MustParsePrefix("127.0.0.0/8"),

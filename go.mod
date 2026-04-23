@@ -143,3 +143,5 @@ tool (
 	mvdan.cc/sh/v3/cmd/shfmt
 	mvdan.cc/unparam
 )
+
+replace github.com/AdguardTeam/dnsproxy => github.com/fcchbjm/dnsproxy v0.81.7

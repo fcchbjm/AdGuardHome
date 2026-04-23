@@ -1,3 +1,43 @@
+# fcchbjm/AdGuardHome
+
+这是[AdguardTeam/AdGuardHome](https://github.com/AdguardTeam/AdGuardHome) 的fork版本，名为[fcchbjm/AdGuardHome](https://github.com/fcchbjm/AdGuardHome)
+
+主要修改如下
+ - 优化网络连接，具体修改请看[fcchbjm/dnsproxy](https://github.com/fcchbjm/dnsproxy)
+ - 更改模块名以方便构建并与官方名称相区别
+ - 新增 Proxy Protocol v2（PPv2）入站支持（DNS-over-TCP、DNS-over-TLS），可通过配置项独立启用：
+   - `dns.tcp-proxy-protocol-v2`
+   - `dns.tls-proxy-protocol-v2`
+   - `dns.trusted_proxies`
+ - PPv2 采用严格模式：
+   - 开启端口必须携带合法 PPv2 头；
+   - 未开启端口禁止 PPv2 头；
+   - 仅 `trusted_proxies` 中来源可被接受并用于替换客户端地址；
+   - DoT 链路顺序：PPv2 -> TLS Handshake -> DNS-over-TCP framing。
+
+PPv2 配置示例（YAML）：
+
+```yaml
+dns:
+  tcp-proxy-protocol-v2: true
+  tls-proxy-protocol-v2: true
+  trusted_proxies:
+    - 10.0.0.0/8
+    - 192.168.0.0/16
+```
+
+前置代理接入提示：
+- Nginx stream: `listen 853 proxy_protocol;` 并在 upstream 到 AdGH 转发时保持 PPv2。
+- HAProxy: `send-proxy-v2`（TCP）或 `send-proxy-v2` + TLS 透传（DoT）。
+- Envoy: 使用 Proxy Protocol v2 透传，确保写入发生在 TLS 握手前。
+- 告警：若来源地址不在 `trusted_proxies`，连接会被拒绝。
+
+以下是官方README.md内容
+
+# 官方README.md
+
+---
+
 &nbsp;
 <p align="center">
   <picture>

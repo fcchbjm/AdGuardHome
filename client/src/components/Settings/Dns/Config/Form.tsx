@@ -13,7 +13,11 @@ import { Textarea } from '../../../ui/Controls/Textarea';
 import { Radio } from '../../../ui/Controls/Radio';
 
 const checkboxes: {
-    name: 'dnssec_enabled' | 'disable_ipv6';
+    name:
+        | 'dnssec_enabled'
+        | 'disable_ipv6'
+        | 'tcp_proxy_protocol_v2_enabled'
+        | 'tls_proxy_protocol_v2_enabled';
     placeholder: string;
     subtitle: string;
 }[] = [
@@ -26,6 +30,16 @@ const checkboxes: {
         name: 'disable_ipv6',
         placeholder: i18next.t('disable_ipv6'),
         subtitle: i18next.t('disable_ipv6_desc'),
+    },
+    {
+        name: 'tcp_proxy_protocol_v2_enabled',
+        placeholder: i18next.t('dns_ppv2_tcp_enable'),
+        subtitle: i18next.t('dns_ppv2_tcp_enable_desc'),
+    },
+    {
+        name: 'tls_proxy_protocol_v2_enabled',
+        placeholder: i18next.t('dns_ppv2_tls_enable'),
+        subtitle: i18next.t('dns_ppv2_tls_enable_desc'),
     },
 ];
 
@@ -85,11 +99,14 @@ type FormData = {
     ratelimit_subnet_len_ipv4: number;
     ratelimit_subnet_len_ipv6: number;
     ratelimit_whitelist: string;
+    trusted_proxies: string;
     edns_cs_enabled: boolean;
     edns_cs_use_custom: boolean;
     edns_cs_custom_ip?: string;
     dnssec_enabled: boolean;
     disable_ipv6: boolean;
+    tcp_proxy_protocol_v2_enabled: boolean;
+    tls_proxy_protocol_v2_enabled: boolean;
     blocking_mode: string;
     blocking_ipv4?: string;
     blocking_ipv6?: string;
@@ -143,6 +160,26 @@ const Form = ({ processing, initialValues, onSubmit }: Props) => {
                                         const { value } = e.target;
                                         field.onChange(toNumber(value));
                                     }}
+                                />
+                            )}
+                        />
+                    </div>
+                </div>
+
+                <div className="col-12 col-md-7">
+                    <div className="form__group form__group--settings">
+                        <Controller
+                            name="trusted_proxies"
+                            control={control}
+                            render={({ field, fieldState }) => (
+                                <Textarea
+                                    {...field}
+                                    data-testid="dns_config_trusted_proxies"
+                                    label={t('dns_ppv2_trusted_proxies')}
+                                    desc={t('dns_ppv2_trusted_proxies_desc')}
+                                    error={fieldState.error?.message}
+                                    disabled={processing}
+                                    trimOnBlur
                                 />
                             )}
                         />
