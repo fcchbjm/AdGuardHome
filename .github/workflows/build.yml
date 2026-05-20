@@ -65,12 +65,13 @@
       - 'name': 'Run tests'
         'shell': 'bash'
         'run': 'make VERBOSE=1 deps test go-bench go-fuzz'
-      - 'name': 'Upload coverage'
-        'uses': 'codecov/codecov-action@v1'
+      - 'name': 'Upload coverage reports to Codecov'
+        'uses': 'codecov/codecov-action@v5'
         'if': "success() && matrix.os == 'ubuntu-latest'"
         'with':
           'token': '${{ secrets.CODECOV_TOKEN }}'
-          'file': './coverage.txt'
+          'slug': 'fcchbjm/AdGuardHome'
+          'files': './cover.out'
   'build-release':
     'runs-on': 'ubuntu-latest'
     'needs': 'test'

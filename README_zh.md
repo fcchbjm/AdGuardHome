@@ -1,5 +1,9 @@
 # fcchbjm/AdGuardHome
 
+[![Code Coverage](https://codecov.io/gh/fcchbjm/AdGuardHome/graph/badge.svg?token=1FXVEOOXRA)](https://codecov.io/gh/fcchbjm/AdGuardHome)
+[![Go Report Card](https://goreportcard.com/badge/github.com/fcchbjm/AdGuardHome)](https://goreportcard.com/report/fcchbjm/AdGuardHome)
+[![Go Doc](https://godoc.org/github.com/fcchbjm/AdGuardHome?status.svg)](https://godoc.org/github.com/fcchbjm/AdGuardHome)
+
 语言：[English](README.md) | 中文
 
 本仓库基于上游项目 [AdguardTeam/AdGuardHome](https://github.com/fcchbjm/AdGuardHome)。
