@@ -8,10 +8,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/fcchbjm/AdGuardHome/internal/aghnet"
-	"github.com/fcchbjm/AdGuardHome/internal/filtering"
 	"github.com/AdguardTeam/golibs/testutil"
 	"github.com/AdguardTeam/golibs/timeutil"
+	"github.com/fcchbjm/AdGuardHome/internal/aghnet"
+	"github.com/fcchbjm/AdGuardHome/internal/filtering"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

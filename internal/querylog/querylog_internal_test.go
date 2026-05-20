@@ -3,8 +3,8 @@ package querylog
 import (
 	"net"
 
-	"github.com/fcchbjm/AdGuardHome/internal/filtering"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
+	"github.com/fcchbjm/AdGuardHome/internal/filtering"
 	"github.com/miekg/dns"
 )
 
