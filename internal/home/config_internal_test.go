@@ -19,6 +19,10 @@ func TestConfigFilePath(t *testing.T) {
 	)
 
 	workDir := t.TempDir()
+	if canon, evalErr := filepath.EvalSymlinks(workDir); evalErr == nil {
+		workDir = canon
+	}
+
 	targetPath := filepath.Join(workDir, realConf)
 	linkPath := filepath.Join(workDir, linkConf)
 	missingPath := filepath.Join(workDir, missingConf)
@@ -36,6 +40,9 @@ func TestConfigFilePath(t *testing.T) {
 	testutil.CleanupAndRequireSuccess(t, f.Close)
 
 	otherDir := t.TempDir()
+	if canon, evalErr := filepath.EvalSymlinks(otherDir); evalErr == nil {
+		otherDir = canon
+	}
 
 	// Canonicalize the absolute path (e.g., on macOS: /var -> /private/var; on
 	// Windows: RUNNER~1 -> runneradmin).
