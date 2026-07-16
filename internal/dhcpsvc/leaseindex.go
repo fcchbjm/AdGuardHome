@@ -167,23 +167,17 @@ func (idx *leaseIndex) update(
 		return err
 	}
 
-	err = idx.dbStore(ctx, logger)
-	if err != nil {
-		// Don't wrap the error since it's informative enough as is.
-		return err
-	}
-
 	delete(idx.byAddr, prev.IP)
 	delete(idx.byName, strings.ToLower(prev.Hostname))
 
 	idx.byAddr[l.IP] = l
 	idx.byName[loweredName] = l
 
-	return nil
+	return idx.dbStore(ctx, logger)
 }
 
 // rangeLeases calls f for each lease in idx in an unspecified order until f
-// returns false.
+// returns false.  It must not be called concurrently, f must not modify leases.
 func (idx *leaseIndex) rangeLeases(f func(l *Lease) (cont bool)) {
 	for _, l := range idx.byName {
 		if !f(l) {

@@ -409,7 +409,8 @@ func (req *jsonDNSConfig) checkPrivateRDNS(
 		privateNets,
 		&upstream.Options{
 			Logger: slogutil.NewDiscardLogger(),
-		})
+		},
+	)
 	err = errors.WithDeferred(err, uc.Close())
 	if err != nil {
 		return fmt.Errorf("private upstream servers: %w", err)

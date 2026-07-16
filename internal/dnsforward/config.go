@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AdguardTeam/dnscrypt"
 	"github.com/AdguardTeam/golibs/container"
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
@@ -20,7 +21,6 @@ import (
 	"github.com/AdguardTeam/golibs/stringutil"
 	"github.com/AdguardTeam/golibs/timeutil"
 	"github.com/AdguardTeam/golibs/validate"
-	"github.com/ameshkov/dnscrypt/v2"
 	"github.com/fcchbjm/AdGuardHome/internal/agh"
 	"github.com/fcchbjm/AdGuardHome/internal/aghhttp"
 	"github.com/fcchbjm/AdGuardHome/internal/aghnet"
@@ -229,7 +229,7 @@ type TLSConfig struct {
 type DNSCryptConfig struct {
 	// ResolverCert is the certificate used for DNSCrypt connections.  It is not
 	// nil if there is at least one UDP or TCP address present.
-	ResolverCert *dnscrypt.Cert
+	ResolverCert *dnscrypt.Certificate
 
 	// UDPListenAddrs are the addresses to listen on for DNSCrypt UDP
 	// connections.
@@ -405,7 +405,8 @@ func (s *Server) newProxyConfig(ctx context.Context) (conf *proxy.Config, err er
 		return nil, fmt.Errorf("validating plain: %w", err)
 	}
 
-	conf, err = prepareCacheConfig(conf,
+	conf, err = prepareCacheConfig(
+		conf,
 		srvConf.CacheEnabled,
 		srvConf.CacheSize,
 		srvConf.CacheMinTTL,

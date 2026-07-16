@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/AdguardTeam/golibs/errors"
+	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/AdguardTeam/golibs/timeutil"
 )
 
@@ -77,7 +79,7 @@ func (iface *netInterface) reset() {
 }
 
 // addLease inserts the given lease into iface.  It returns an error if the
-// lease can't be inserted.
+// lease can't be inserted.  l must not be nil.  iface.indexMu must be locked.
 func (iface *netInterface) addLease(l *Lease) (err error) {
 	mk := macToKey(l.HWAddr)
 	_, found := iface.leases[mk]
@@ -94,7 +96,8 @@ func (iface *netInterface) addLease(l *Lease) (err error) {
 }
 
 // updateLease replaces an existing lease within iface with the given one.  It
-// returns an error if there is no lease with such hardware address.
+// returns an error if there is no lease with such hardware address.  l must not
+// be nil.  iface.indexMu must be locked.
 func (iface *netInterface) updateLease(l *Lease) (prev *Lease, err error) {
 	mk := macToKey(l.HWAddr)
 	prev, found := iface.leases[mk]
@@ -108,7 +111,8 @@ func (iface *netInterface) updateLease(l *Lease) (prev *Lease, err error) {
 }
 
 // removeLease removes an existing lease from iface.  It returns an error if
-// there is no lease equal to l.  l must not be nil.
+// there is no lease equal to l.  l must not be nil.  iface.indexMu must be
+// locked.
 func (iface *netInterface) removeLease(l *Lease) (err error) {
 	mk := macToKey(l.HWAddr)
 	_, found := iface.leases[mk]
@@ -125,13 +129,18 @@ func (iface *netInterface) removeLease(l *Lease) (err error) {
 }
 
 // blockLease marks l as blocked for a configured TTL, as reported by
-// [Lease.IsBlocked].  indexMu must be locked,  It also removes the lease from
-// iface.  l must not be nil.
+// [Lease.IsBlocked].  It also removes the lease from iface, but leaves it in
+// the index.  iface.indexMu must be locked, l and clock must not be nil.
 func (iface *netInterface) blockLease(
 	ctx context.Context,
 	l *Lease,
 	clock timeutil.Clock,
 ) (err error) {
+	err = iface.removeLease(l)
+	if err != nil {
+		return fmt.Errorf("removing lease: %w", err)
+	}
+
 	l.HWAddr = blockedHardwareAddr
 	l.Hostname = ""
 	l.Expiry = clock.Now().Add(iface.leaseTTL)
@@ -145,7 +154,8 @@ func (iface *netInterface) blockLease(
 	return nil
 }
 
-// nextIP generates a new free IP.
+// nextIP generates a new free IP.  It returns netip.Addr{} if there are no free
+// IPs in the address space.  iface.indexMu must be locked.
 func (iface *netInterface) nextIP() (ip netip.Addr) {
 	r := iface.addrSpace
 	ip = r.find(func(next netip.Addr) (ok bool) {
@@ -160,8 +170,8 @@ func (iface *netInterface) nextIP() (ip netip.Addr) {
 	return ip
 }
 
-// findExpiredLease returns the first found lease that has expired.  indexMu
-// must be locked.
+// findExpiredLease returns the first found lease that has expired.
+// iface.indexMu must be locked.
 func (iface *netInterface) findExpiredLease(now time.Time) (l *Lease) {
 	for _, lease := range iface.leases {
 		if !lease.IsStatic && lease.Expiry.Before(now) {
@@ -170,4 +180,92 @@ func (iface *netInterface) findExpiredLease(now time.Time) (l *Lease) {
 	}
 
 	return nil
+}
+
+// allocateLease allocates a new lease for the MAC address.  If there are no IP
+// addresses left, both lease and err are nil.  mac must be a valid according to
+// [netutil.ValidateMAC].
+//
+// TODO(e.burkov):  Pass the precalculated macKey.
+func (iface *netInterface) allocateLease(
+	ctx context.Context,
+	mac net.HardwareAddr,
+	checker addressChecker,
+	clock timeutil.Clock,
+) (lease *Lease, err error) {
+	key := macToKey(mac)
+
+	for {
+		lease, err = iface.reserveLease(ctx, mac, clock)
+		if err != nil {
+			return nil, err
+		}
+
+		var ok bool
+		ok, err = checker.IsAvailable(lease.IP)
+		if err != nil {
+			return nil, fmt.Errorf("checking address availability: %w", err)
+		}
+
+		if ok {
+			iface.leases[key] = lease
+
+			off, _ := iface.addrSpace.offset(lease.IP)
+			iface.leasedOffsets.set(off, true)
+
+			return lease, nil
+		}
+
+		iface.logger.DebugContext(ctx, "address not available", "ip", lease.IP)
+
+		err = iface.blockLease(ctx, lease, clock)
+		if err != nil {
+			return nil, fmt.Errorf("blocking unavailable address: %w", err)
+		}
+	}
+}
+
+// reserveLease reserves a lease for a client by its MAC-address.  lease is nil
+// if a new lease can't be allocated.  mac must be a valid according to
+// [netutil.ValidateMAC].  iface.indexMu mutex must be locked.
+//
+// TODO(e.burkov):  Pass the time moment instead of clock.
+func (iface *netInterface) reserveLease(
+	ctx context.Context,
+	mac net.HardwareAddr,
+	clock timeutil.Clock,
+) (lease *Lease, err error) {
+	// TODO(e.burkov):  Limit the number of attempts.
+	nextIP := iface.nextIP()
+	if nextIP != (netip.Addr{}) {
+		lease = &Lease{
+			HWAddr: slices.Clone(mac),
+			IP:     nextIP,
+			Expiry: clock.Now().Add(iface.leaseTTL),
+		}
+
+		return lease, nil
+	}
+
+	lease = iface.findExpiredLease(clock.Now())
+	if lease == nil {
+		return nil, errors.Error("no addresses available to lease")
+	}
+
+	err = iface.index.remove(ctx, iface.logger, lease, iface)
+	if err != nil {
+		// TODO(e.burkov):  Reconsider the severity of this error, it actually
+		// seems impossible to get the error about the existing lease from the
+		// method.
+		iface.logger.DebugContext(ctx, "deleting expired lease", slogutil.KeyError, err)
+	}
+
+	lease.HWAddr = slices.Clone(mac)
+	lease.Hostname = ""
+	lease.IsStatic = false
+	lease.updateExpiry(clock, iface.leaseTTL)
+
+	iface.leases[macToKey(mac)] = lease
+
+	return lease, nil
 }
