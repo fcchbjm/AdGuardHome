@@ -7,8 +7,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/fcchbjm/AdGuardHome/internal/dhcpsvc"
 	"github.com/AdguardTeam/golibs/testutil"
+	"github.com/fcchbjm/AdGuardHome/internal/dhcpsvc"
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/layers"
 	"github.com/stretchr/testify/require"

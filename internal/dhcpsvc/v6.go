@@ -10,12 +10,12 @@ import (
 	"slices"
 	"time"
 
-	"github.com/fcchbjm/AdGuardHome/internal/aghnet"
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/AdguardTeam/golibs/netutil"
 	"github.com/AdguardTeam/golibs/timeutil"
 	"github.com/AdguardTeam/golibs/validate"
+	"github.com/fcchbjm/AdGuardHome/internal/aghnet"
 	"github.com/gopacket/gopacket/layers"
 )
 

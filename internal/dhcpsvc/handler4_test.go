@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fcchbjm/AdGuardHome/internal/dhcpsvc"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/AdguardTeam/golibs/testutil"
 	"github.com/AdguardTeam/golibs/testutil/servicetest"
+	"github.com/fcchbjm/AdGuardHome/internal/dhcpsvc"
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/layers"
 	"github.com/stretchr/testify/assert"

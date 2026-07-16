@@ -14,14 +14,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/AdguardTeam/golibs/netutil"
+	"github.com/AdguardTeam/golibs/testutil"
+	"github.com/AdguardTeam/golibs/timeutil"
 	"github.com/fcchbjm/AdGuardHome/internal/agh"
 	"github.com/fcchbjm/AdGuardHome/internal/aghalg"
 	"github.com/fcchbjm/AdGuardHome/internal/aghtls"
 	"github.com/fcchbjm/AdGuardHome/internal/client"
 	"github.com/fcchbjm/AdGuardHome/internal/dnsforward"
-	"github.com/AdguardTeam/golibs/netutil"
-	"github.com/AdguardTeam/golibs/testutil"
-	"github.com/AdguardTeam/golibs/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
