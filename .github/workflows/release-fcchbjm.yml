@@ -4,6 +4,9 @@
 # 请将两个 job 里的 github.repository 比较值改为你自己的「所有者/仓库名」。
 #
 # 官方仓库即使合并本文件也不会执行发布（repository 判断为假）；官方仍使用原有 build.yml 等流程。
+#
+# Fork 发行使用 CLIENT_DIR=client（旧 React UI，含 PPv2 设置页）；Makefile 默认 client_v2，
+# 在 PPv2 迁入 client_v2 之前须显式覆盖，与 build.yml 测试侧一致。
 
 'name': 'release (fork)'
 
@@ -54,7 +57,7 @@
         'key': "${{ runner.os }}-node-${{ hashFiles('client/package-lock.json') }}"
         'restore-keys': '${{ runner.os }}-node-'
     - 'name': 'Run tests'
-      'run': 'make VERBOSE=1 deps test'
+      'run': 'make CLIENT_DIR=client VERBOSE=1 deps test'
 
   'release':
     'if': "github.repository == 'fcchbjm/AdGuardHome'"
@@ -97,7 +100,7 @@
         'VERSION_DOWNLOAD_URL': 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}'
         'ANNOUNCEMENT_URL': 'https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}'
         'UPDATE_INDEX_URL': 'https://github.com/${{ github.repository }}/releases/latest/download/version.json'
-      'run': 'make -e SIGN=0 VERBOSE=1 CHANNEL=release deps build-release'
+      'run': 'make -e CLIENT_DIR=client SIGN=0 VERBOSE=1 CHANNEL=release deps build-release'
     - 'name': 'Set up QEMU'
       'uses': 'docker/setup-qemu-action@v3'
     - 'name': 'Set up Docker Buildx'
