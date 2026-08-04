@@ -131,6 +131,7 @@ func newRatelimitMw(l *slog.Logger, limit int) (mw proxy.Middleware, err error) 
 	rlConf := &ratelimit.Config{
 		Logger:        l.With(slogutil.KeyPrefix, "ratelimit"),
 		Ratelimit:     uint(limit),
+		MaxSize:       ratelimit.DefaultMaxSize,
 		SubnetLenIPv4: netutil.IPv4BitLen,
 		SubnetLenIPv6: netutil.IPv6BitLen,
 	}
