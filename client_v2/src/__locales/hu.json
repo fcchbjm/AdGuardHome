@@ -27,6 +27,7 @@
   "blocked_services": "Blokkolt szolgáltatások",
   "blocked_threats": "Tiltott fenyegetések",
   "blocked_threats_chart": "Tiltott fenyegetések",
+  "blocklist_add_from_list": "Hozzáadás listából",
   "blocklist_add_manual": "Kézi hozzáadás",
   "blocklist_edit": "Blokkolási lista módosítása",
   "blocklist_homepage": "Honlap",
@@ -386,5 +387,11 @@
   "whois": "WHOIS",
   "yes": "Igen",
   "yes_disable": "Igen",
-  "yes_reset": "Igen"
+  "yes_reset": "Igen",
+  "dns_ppv2_tcp_enable": "Enable Proxy Protocol v2 for DNS-over-TCP",
+  "dns_ppv2_tcp_enable_desc": "Strict mode: when enabled, incoming TCP DNS connections must start with a valid Proxy Protocol v2 header.",
+  "dns_ppv2_tls_enable": "Enable Proxy Protocol v2 for DNS-over-TLS",
+  "dns_ppv2_tls_enable_desc": "Strict mode: when enabled, incoming DoT connections must start with a valid Proxy Protocol v2 header before TLS handshake.",
+  "dns_ppv2_trusted_proxies": "Trusted proxies",
+  "dns_ppv2_trusted_proxies_desc": "CIDR networks of trusted load balancers/sidecars. Only these sources may supply Proxy Protocol v2 client addresses. One CIDR per line."
 }

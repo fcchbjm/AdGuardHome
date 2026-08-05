@@ -478,7 +478,7 @@
   "protection": "防護",
   "protocol": "協定",
   "queries": "查詢",
-  "queries_total": "共 %count% 條查詢 | 共 %count% 條查詢",
+  "queries_total": "共 %value% 條查詢 | 共 %value% 條查詢",
   "query_details": "查詢詳細資料",
   "query_log": "查詢紀錄",
   "query_log_all_reasons": "全部原因",
@@ -860,5 +860,11 @@
   "whois": "WHOIS",
   "yes": "是",
   "yes_disable": "禁用",
-  "yes_reset": "重置"
+  "yes_reset": "重置",
+  "dns_ppv2_tcp_enable": "Enable Proxy Protocol v2 for DNS-over-TCP",
+  "dns_ppv2_tcp_enable_desc": "Strict mode: when enabled, incoming TCP DNS connections must start with a valid Proxy Protocol v2 header.",
+  "dns_ppv2_tls_enable": "Enable Proxy Protocol v2 for DNS-over-TLS",
+  "dns_ppv2_tls_enable_desc": "Strict mode: when enabled, incoming DoT connections must start with a valid Proxy Protocol v2 header before TLS handshake.",
+  "dns_ppv2_trusted_proxies": "Trusted proxies",
+  "dns_ppv2_trusted_proxies_desc": "CIDR networks of trusted load balancers/sidecars. Only these sources may supply Proxy Protocol v2 client addresses. One CIDR per line."
 }

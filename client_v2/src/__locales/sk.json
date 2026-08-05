@@ -215,6 +215,7 @@
   "dns_blocking_mode_refused": "REFUSED",
   "dns_blocking_mode_title": "Spôsob blokovania",
   "dns_blocking_mode_ttl_label": "Blokovaná odozva TTL v sekundách",
+  "dns_bootstrap_dns_desc": "Nastaví DNS servery používané na preklad názvov hostiteľov nadriadených prekladačov DoH/DoT",
   "dns_bootstrap_dns_label": "Bootstrap DNS servery, jeden na riadok",
   "dns_bootstrap_dns_placeholder": "IP adresy",
   "dns_bootstrap_dns_title": "Bootstrap DNS servery",
@@ -478,7 +479,8 @@
   "protection": "Ochrana",
   "protocol": "Protokol",
   "queries": "Dopyty",
-  "queries_total": "| %count% celkový počet dopytov | %count% celkový počet dopytov",
+  "queries_tooltip": "%value% dopytov",
+  "queries_total": "| celkom %value% dopyt | celkom %value% dopyty | celkom %value% dopytov",
   "query_details": "Podrobnosti dopytu",
   "query_log": "Denník dopytov",
   "query_log_all_reasons": "Všetky dôvody",
@@ -860,5 +862,11 @@
   "whois": "WHOIS",
   "yes": "Áno",
   "yes_disable": "Áno, vypnúť",
-  "yes_reset": "Áno, resetovať"
+  "yes_reset": "Áno, resetovať",
+  "dns_ppv2_tcp_enable": "Enable Proxy Protocol v2 for DNS-over-TCP",
+  "dns_ppv2_tcp_enable_desc": "Strict mode: when enabled, incoming TCP DNS connections must start with a valid Proxy Protocol v2 header.",
+  "dns_ppv2_tls_enable": "Enable Proxy Protocol v2 for DNS-over-TLS",
+  "dns_ppv2_tls_enable_desc": "Strict mode: when enabled, incoming DoT connections must start with a valid Proxy Protocol v2 header before TLS handshake.",
+  "dns_ppv2_trusted_proxies": "Trusted proxies",
+  "dns_ppv2_trusted_proxies_desc": "CIDR networks of trusted load balancers/sidecars. Only these sources may supply Proxy Protocol v2 client addresses. One CIDR per line."
 }

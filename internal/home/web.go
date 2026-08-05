@@ -77,6 +77,9 @@ type webAPIConfig struct {
 	// must not be nil.
 	mux *http.ServeMux
 
+	// hostsContainer is used for DNS initialization on updates.
+	hostsContainer *aghnet.HostsContainer
+
 	// clientFS is used to initialize file server.  It must not be nil.
 	clientFS fs.FS
 
@@ -88,6 +91,9 @@ type webAPIConfig struct {
 
 	// confPath is the configuration file path.
 	confPath string
+
+	// pidFilePath is a path to a PID file.
+	pidFilePath string
 
 	// ReadTimeout is an option to pass to http.Server for setting an
 	// appropriate field.
@@ -228,11 +234,17 @@ type webAPI struct {
 	// auth stores web user information and handles authentication.
 	auth *auth
 
+	// hostsContainer is used for DNS initialization on updates.
+	hostsContainer *aghnet.HostsContainer
+
 	// httpsServer is the server that handles HTTPS traffic.  If it is not nil,
 	// [Web.http3Server] must also not be nil.
 	//
 	// TODO(d.kolyshev):  Make it a pointer.
 	httpsServer httpsServer
+
+	// pidFilePath is used for cleanup.
+	pidFilePath string
 
 	// startTime is the start time of the web API server in Unix milliseconds.
 	startTime time.Time
@@ -246,15 +258,17 @@ func newWebAPI(ctx context.Context, conf *webAPIConfig) (w *webAPI) {
 	conf.logger.InfoContext(ctx, "initializing")
 
 	w = &webAPI{
-		conf:         conf,
-		confModifier: conf.confModifier,
-		httpReg:      conf.httpReg,
-		cmdCons:      conf.CommandConstructor,
-		logger:       conf.logger,
-		baseLogger:   conf.baseLogger,
-		tlsManager:   conf.tlsManager,
-		auth:         conf.auth,
-		startTime:    time.Now(),
+		conf:           conf,
+		confModifier:   conf.confModifier,
+		httpReg:        conf.httpReg,
+		cmdCons:        conf.CommandConstructor,
+		logger:         conf.logger,
+		baseLogger:     conf.baseLogger,
+		tlsManager:     conf.tlsManager,
+		auth:           conf.auth,
+		pidFilePath:    conf.pidFilePath,
+		startTime:      time.Now(),
+		hostsContainer: conf.hostsContainer,
 	}
 
 	clientFS := http.FileServer(http.FS(conf.clientFS))
@@ -277,7 +291,6 @@ func newWebAPI(ctx context.Context, conf *webAPIConfig) (w *webAPI) {
 		mux.Handle("/install.html", w.preInstallHandler(clientFS))
 		w.registerInstallHandlers()
 	} else {
-		w.registerTLSHandlers()
 		w.registerControlHandlers()
 	}
 
@@ -374,7 +387,8 @@ func (web *webAPI) start(ctx context.Context) {
 
 		err := <-errs
 		if !errors.Is(err, http.ErrServerClosed) {
-			cleanupAlways()
+			cleanupAlways(ctx, logger, web.pidFilePath)
+
 			panic(err)
 		}
 
@@ -457,6 +471,8 @@ func (web *webAPI) serveTLS(ctx context.Context) (next bool) {
 	web.httpsServer.server = &http.Server{
 		Addr:    addr,
 		Handler: hdlr,
+		// TODO(m.kazantsev):  Do not create TLS config manually, but use
+		// [aghtls.TLSConfigProvider].
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{web.httpsServer.certificate()},
 			RootCAs:      web.tlsManager.rootCerts,
@@ -478,7 +494,8 @@ func (web *webAPI) serveTLS(ctx context.Context) (next bool) {
 	logger.InfoContext(ctx, "starting https server")
 	err := web.httpsServer.server.ListenAndServeTLS("", "")
 	if !errors.Is(err, http.ErrServerClosed) {
-		cleanupAlways()
+		cleanupAlways(ctx, logger, web.pidFilePath)
+
 		panic(fmt.Errorf("https: %w", err))
 	}
 
@@ -496,6 +513,8 @@ func (web *webAPI) mustStartHTTP3(ctx context.Context, address string) {
 		// TODO(a.garipov): See if there is a way to use the error log as
 		// well as timeouts here.
 		Addr: address,
+		// TODO(m.kazantsev):  Do not create TLS config manually, but use
+		// [aghtls.TLSConfigProvider].
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{web.httpsServer.certificate()},
 			RootCAs:      web.tlsManager.rootCerts,
@@ -508,7 +527,8 @@ func (web *webAPI) mustStartHTTP3(ctx context.Context, address string) {
 	web.logger.DebugContext(ctx, "starting http/3 server")
 	err := web.httpsServer.server3.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
-		cleanupAlways()
+		cleanupAlways(ctx, logger, web.pidFilePath)
+
 		panic(fmt.Errorf("http3: %w", err))
 	}
 }
@@ -535,15 +555,6 @@ func startPprof(baseLogger *slog.Logger, port uint16) {
 			logger.ErrorContext(ctx, "shutting down", slogutil.KeyError, err)
 		}
 	}()
-}
-
-// registerTLSHandlers registers HTTP handlers for TLS configuration.
-//
-// TODO(m.kazantsev):  Consider uniting with registerControlHandlers.
-func (web *webAPI) registerTLSHandlers() {
-	web.httpReg.Register(http.MethodGet, "/control/tls/status", web.handleTLSStatus)
-	web.httpReg.Register(http.MethodPost, "/control/tls/configure", web.handleTLSConfigure)
-	web.httpReg.Register(http.MethodPost, "/control/tls/validate", web.handleTLSValidate)
 }
 
 // handleTLSStatus is the handler for the GET /control/tls/status HTTP API.
@@ -799,7 +810,12 @@ func (web *webAPI) handleTLSConfigure(w http.ResponseWriter, r *http.Request) {
 	newTLSConf := &req.tlsConfigSettings
 	newTLSConf.Status = *status
 
-	restartHTTPS = web.tlsManager.setConfig(ctx, newTLSConf, req.ServePlainDNS)
+	restartHTTPS, err = web.tlsManager.setConfig(ctx, newTLSConf, req.ServePlainDNS)
+	if err != nil {
+		aghhttp.ErrorAndLog(ctx, web.logger, r, w, http.StatusInternalServerError, "%s", err)
+
+		return
+	}
 
 	err = web.reconfigureDNSServer(ctx, newTLSConf)
 	if err != nil {

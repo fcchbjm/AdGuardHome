@@ -29,7 +29,7 @@
 
 # NOTE:  Keep in sync with bamboo-specs/bamboo.yaml.
 ARG BASE_IMAGE=adguard/home-js-builder:4.0
-ARG CLIENT_DIR=client
+ARG CLIENT_DIR=client_v2
 
 # The dependencies stage is needed to install packages and tool dependencies.
 # This is also where binaries like osslsigncode, which may be required for tests

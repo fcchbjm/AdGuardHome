@@ -27,6 +27,7 @@
   "blocked_services": "Блокирани услуги",
   "blocked_threats": "Блокирани заплахи",
   "blocked_threats_chart": "Блокирани заплахи",
+  "blocklist_add_from_list": "Добавяне от списък",
   "blocklist_add_manual": "Добавете ръчно",
   "blocklist_edit": "Редактиране на списък за блокиране",
   "blocklist_homepage": "Начална страница",
@@ -118,6 +119,7 @@
   "dns_optimistic_caching": "Оптимистично кеширане",
   "dns_over_https": "DNS-пред-HTTPS",
   "dns_over_quic": "DNS-over-QUIC",
+  "dns_over_tls": "DNS-над-TLS",
   "dns_override_max_ttl": "Презаписване на максимален TTL",
   "dns_override_max_ttl_title": "Презаписване на максимален TTL",
   "dns_override_min_ttl": "Преобръщане на минималния TTL",
@@ -260,6 +262,7 @@
   "refresh_statics": "Обнови статистиката",
   "release_notes": "Бележки по изданието",
   "remove": "Премахни",
+  "report_an_issue": "Докладвай проблем",
   "request_table_header": "Заявка",
   "requests_table_header": "Заявки",
   "reset": "Нулиране",
@@ -374,5 +377,11 @@
   "whois": "WHOIS",
   "yes": "Да",
   "yes_disable": "Да, деактивирай",
-  "yes_reset": "Да, нулирай"
+  "yes_reset": "Да, нулирай",
+  "dns_ppv2_tcp_enable": "Enable Proxy Protocol v2 for DNS-over-TCP",
+  "dns_ppv2_tcp_enable_desc": "Strict mode: when enabled, incoming TCP DNS connections must start with a valid Proxy Protocol v2 header.",
+  "dns_ppv2_tls_enable": "Enable Proxy Protocol v2 for DNS-over-TLS",
+  "dns_ppv2_tls_enable_desc": "Strict mode: when enabled, incoming DoT connections must start with a valid Proxy Protocol v2 header before TLS handshake.",
+  "dns_ppv2_trusted_proxies": "Trusted proxies",
+  "dns_ppv2_trusted_proxies_desc": "CIDR networks of trusted load balancers/sidecars. Only these sources may supply Proxy Protocol v2 client addresses. One CIDR per line."
 }
