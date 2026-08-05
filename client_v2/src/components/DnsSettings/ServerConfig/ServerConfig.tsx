@@ -6,6 +6,8 @@ import {
     toggleDnssecEnabled,
     toggleDisableIPv6,
     toggleEdnsCsEnabled,
+    toggleTcpProxyProtocolV2,
+    toggleTlsProxyProtocolV2,
 } from 'panel/stores/dnsConfig';
 import intl from 'panel/common/intl';
 import { SettingRow } from 'panel/common/ui/SettingRow';
@@ -20,6 +22,7 @@ import { SubnetPrefixV6Dialog } from './blocks/SubnetPrefixV6Dialog';
 import { BlockingModeDialog } from './blocks/BlockingModeDialog';
 import { RateLimitAllowlistDialog } from './blocks/RateLimitAllowlistDialog';
 import { EdnsDialog } from './blocks/EdnsDialog';
+import { TrustedProxiesDialog } from './blocks/TrustedProxiesDialog';
 
 export const ServerConfig = () => {
     const rateLimitDialog = useDialog();
@@ -28,6 +31,7 @@ export const ServerConfig = () => {
     const blockingModeDialog = useDialog();
     const allowlistDialog = useDialog();
     const ednsDialog = useDialog();
+    const trustedProxiesDialog = useDialog();
 
     const rateLimitValue = createMemo(() => getRateLimitSummary(dnsConfigState.ratelimit));
     const blockingModeValue = createMemo(() =>
@@ -120,6 +124,33 @@ export const ServerConfig = () => {
                 onChange={() => toggleDisableIPv6()}
             />
 
+            <SettingRow
+                variant="switch"
+                id="tcp_proxy_protocol_v2"
+                title={intl.getMessage('dns_ppv2_tcp_enable')}
+                description={intl.getMessage('dns_ppv2_tcp_enable_desc')}
+                checked={dnsConfigState.tcp_proxy_protocol_v2_enabled}
+                onChange={() => toggleTcpProxyProtocolV2()}
+            />
+
+            <SettingRow
+                variant="switch"
+                id="tls_proxy_protocol_v2"
+                title={intl.getMessage('dns_ppv2_tls_enable')}
+                description={intl.getMessage('dns_ppv2_tls_enable_desc')}
+                checked={dnsConfigState.tls_proxy_protocol_v2_enabled}
+                onChange={() => toggleTlsProxyProtocolV2()}
+            />
+
+            <SettingRow
+                variant="link"
+                id="trusted_proxies"
+                title={intl.getMessage('dns_ppv2_trusted_proxies')}
+                description={intl.getMessage('dns_ppv2_trusted_proxies_desc')}
+                value={getUpstreamServersSummary(dnsConfigState.trusted_proxies)}
+                onClick={trustedProxiesDialog.openDialog}
+            />
+
             <RateLimitDialog
                 open={rateLimitDialog.open}
                 onClose={rateLimitDialog.closeDialog}
@@ -153,6 +184,12 @@ export const ServerConfig = () => {
             <EdnsDialog
                 open={ednsDialog.open}
                 onClose={ednsDialog.closeDialog}
+                processing={processing()}
+            />
+
+            <TrustedProxiesDialog
+                open={trustedProxiesDialog.open}
+                onClose={trustedProxiesDialog.closeDialog}
                 processing={processing()}
             />
         </div>
