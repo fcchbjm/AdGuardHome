@@ -10,7 +10,7 @@ This repository is based on the upstream project [AdguardTeam/AdGuardHome](https
 Key changes in this fork
 
 - DNS forwarding uses [`github.com/fcchbjm/dnsproxy`](https://github.com/fcchbjm/dnsproxy) instead of [`github.com/AdguardTeam/dnsproxy`](https://github.com/AdguardTeam/dnsproxy). See that repo for TLS/TCP tuning, keep-alive, TFO, TLS resumption, inbound PPv2, and related fixes.
-- **PPv2 (DNS-over-TCP / DoT)** in YAML: `dns.tcp-proxy-protocol-v2`, `dns.tls-proxy-protocol-v2`, `dns.trusted_proxies`. Strict on/off semantics; DoT order: PPv2 → TLS → DNS framing.
+- **PPv2 (DNS-over-TCP / DoT)** in YAML: `dns.tcp-proxy-protocol-v2`, `dns.tls-proxy-protocol-v2`, `dns.trusted_proxies`. Strict on/off semantics; DoT order: PPv2 → TLS → DNS framing. From **v1.0.0**, release builds embed **`client_v2`** (SolidJS), including the PPv2 DNS settings UI.
 - **Releases & updates**: when you push a **`v*`** tag, [this repo’s GitHub Actions](.github/workflows/release-fcchbjm.yml) publishes builds whose **`version.json`** download/announcement URLs default to **this repo’s Releases**, and **release binaries** default to checking **`…/releases/latest/download/version.json`**. **Docker images** do **not** bake that update index—upgrade with **`docker pull`**. A local `make build-release` **without** `VERSION_DOWNLOAD_URL`, `ANNOUNCEMENT_URL`, and `UPDATE_INDEX_URL` matches **upstream script defaults**. **`version.txt`** is only `version=<tag>`; URLs live in **`version.json`**.
 
 ## Quick start

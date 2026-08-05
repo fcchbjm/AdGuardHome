@@ -10,7 +10,7 @@
 主要修改如下
 
 - DNS 转发依赖 [`github.com/fcchbjm/dnsproxy`](https://github.com/fcchbjm/dnsproxy)（替代 [`github.com/AdguardTeam/dnsproxy`](https://github.com/AdguardTeam/dnsproxy)）；TLS/TCP、Keep-Alive、TFO、会话复用、入站 PPv2 等见该仓库说明。
-- **PPv2（DNS-over-TCP / DoT）**：YAML 中 `dns.tcp-proxy-protocol-v2`、`dns.tls-proxy-protocol-v2`、`dns.trusted_proxies`；开启须带合法 PPv2，关闭则不得带；DoT 顺序：PPv2 → TLS → DNS 分帧。
+- **PPv2（DNS-over-TCP / DoT）**：YAML 中 `dns.tcp-proxy-protocol-v2`、`dns.tls-proxy-protocol-v2`、`dns.trusted_proxies`；开启须带合法 PPv2，关闭则不得带；DoT 顺序：PPv2 → TLS → DNS 分帧。自 **v1.0.0** 起发行包嵌入 **`client_v2`（SolidJS）**，含 PPv2 DNS 设置页。
 - **发行与更新**：推送 `v*` 标签由本仓库 [GitHub Actions](.github/workflows/release-fcchbjm.yml) 发版时，**发行版二进制**默认从本仓库 **`releases/latest/download/version.json`** 检查更新，`version.json` 内下载与公告默认指向本仓库 Releases；**Docker 镜像**不注入该索引，请 **`docker pull`** 升级。本地 `make build-release` **未**设置 `VERSION_DOWNLOAD_URL`、`ANNOUNCEMENT_URL`、`UPDATE_INDEX_URL` 时与上游构建脚本默认一致。`version.txt` 仅 `version=<tag>`，URL 在 **`version.json`**。
 
 ## 快速开始

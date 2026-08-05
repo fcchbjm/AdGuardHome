@@ -1,5 +1,4 @@
-# TODO(a.garipov):  Use client_v2 for the frontend tests once Windows build is
-# fixed.
+# Frontend tests and builds use client_v2 (SolidJS).
 'name': 'build'
 # Permissions are disabled for all the jobs by default, and then overridden for
 # specific jobs if needed.  This is a recommended practice for security reasons,
@@ -62,11 +61,11 @@
         'uses': 'actions/cache@v4'
         'with':
           'path': '${{ steps.npm-cache.outputs.dir }}'
-          'key': "${{ runner.os }}-node-${{ hashFiles('client/package-lock.json') }}"
+          'key': "${{ runner.os }}-node-${{ hashFiles('client_v2/package-lock.json') }}"
           'restore-keys': '${{ runner.os }}-node-'
       - 'name': 'Run tests'
         'shell': 'bash'
-        'run': 'make CLIENT_DIR=client VERBOSE=1 deps test go-bench go-fuzz'
+        'run': 'make CLIENT_DIR=client_v2 VERBOSE=1 deps test go-bench go-fuzz'
       - 'name': 'Upload coverage reports to Codecov'
         'uses': 'codecov/codecov-action@v5'
         'if': "success() && matrix.os == 'ubuntu-latest'"
@@ -109,7 +108,7 @@
         'uses': 'actions/cache@v4'
         'with':
           'path': '${{ steps.npm-cache.outputs.dir }}'
-          'key': "${{ runner.os }}-node-${{ hashFiles('client/package-lock.json') }}"
+          'key': "${{ runner.os }}-node-${{ hashFiles('client_v2/package-lock.json') }}"
           'restore-keys': '${{ runner.os }}-node-'
       - 'name': 'Set up Snapcraft'
         'run': 'sudo snap install snapcraft --classic'

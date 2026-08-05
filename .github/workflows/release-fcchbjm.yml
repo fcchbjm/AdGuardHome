@@ -5,8 +5,7 @@
 #
 # 官方仓库即使合并本文件也不会执行发布（repository 判断为假）；官方仍使用原有 build.yml 等流程。
 #
-# Fork 发行使用 CLIENT_DIR=client（旧 React UI，含 PPv2 设置页）；Makefile 默认 client_v2，
-# 在 PPv2 迁入 client_v2 之前须显式覆盖，与 build.yml 测试侧一致。
+# Fork 发行嵌入 client_v2（SolidJS，含 PPv2 DNS 设置）；Makefile 默认即为 client_v2。
 
 'name': 'release (fork)'
 
@@ -54,10 +53,10 @@
       'uses': 'actions/cache@v4'
       'with':
         'path': '~/.npm'
-        'key': "${{ runner.os }}-node-${{ hashFiles('client/package-lock.json') }}"
+        'key': "${{ runner.os }}-node-${{ hashFiles('client_v2/package-lock.json') }}"
         'restore-keys': '${{ runner.os }}-node-'
     - 'name': 'Run tests'
-      'run': 'make CLIENT_DIR=client VERBOSE=1 deps test'
+      'run': 'make CLIENT_DIR=client_v2 VERBOSE=1 deps test'
 
   'release':
     'if': "github.repository == 'fcchbjm/AdGuardHome'"
@@ -89,7 +88,7 @@
       'uses': 'actions/cache@v4'
       'with':
         'path': '~/.npm'
-        'key': "${{ runner.os }}-node-${{ hashFiles('client/package-lock.json') }}"
+        'key': "${{ runner.os }}-node-${{ hashFiles('client_v2/package-lock.json') }}"
         'restore-keys': '${{ runner.os }}-node-'
     # VERSION：用 tag 名作为发行号。须配合 make -e：Makefile 里写了 VERSION=v0.0.0，
     # GNU Make 默认不会用环境变量覆盖该赋值；不设 -e 时会仍用 v0.0.0 并调用 version.sh → git describe（fork 上易失败）。
@@ -100,7 +99,7 @@
         'VERSION_DOWNLOAD_URL': 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}'
         'ANNOUNCEMENT_URL': 'https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}'
         'UPDATE_INDEX_URL': 'https://github.com/${{ github.repository }}/releases/latest/download/version.json'
-      'run': 'make -e CLIENT_DIR=client SIGN=0 VERBOSE=1 CHANNEL=release deps build-release'
+      'run': 'make -e CLIENT_DIR=client_v2 SIGN=0 VERBOSE=1 CHANNEL=release deps build-release'
     - 'name': 'Set up QEMU'
       'uses': 'docker/setup-qemu-action@v3'
     - 'name': 'Set up Docker Buildx'
@@ -123,7 +122,9 @@
       'with':
         'tag_name': '${{ github.ref_name }}'
         'name': '${{ github.ref_name }}'
-        'generate_release_notes': true
+        # Prefer curated notes under docs/release/<tag>.md (e.g. v1.0.0.md).
+        'body_path': 'docs/release/${{ github.ref_name }}.md'
+        'generate_release_notes': false
         'files': |
           dist/*.zip
           dist/*.tar.gz
