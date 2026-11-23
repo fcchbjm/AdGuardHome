@@ -33,6 +33,69 @@ NOTE: Add new changes BELOW THIS COMMENT.
 NOTE: Add new changes ABOVE THIS COMMENT.
 -->
 
+## [v0.1.0] - 2026-11-23
+
+> Fork's own version number (`github.com/fcchbjm/AdGuardHome`), independent of
+> upstream AdGuard Home versions.  Its content corresponds to upstream `v1.0.0`
+> (`7d2f42b0`) plus the 15 commits on upstream `master` at the time of the merge.
+
+### Added
+
+- Proxy Protocol v2 DNS settings in the **client_v2** (SolidJS) Web UI
+  (`trusted_proxies`, `tcp_proxy_protocol_v2_enabled`,
+  `tls_proxy_protocol_v2_enabled`).
+- OpenAPI `DNSConfig` documents the PPv2 fields above.
+
+### Changed
+
+- Merged upstream **v1.0.0** (`7d2f42b0`, 100 commits since `369d4761`), including
+  the new UI release model, Cloudflare DNS defaults for new installations, and
+  the removal of deprecated HTTP APIs and CLI flags.
+- Merged upstream `master` (`69ee3d38`), which brings the fixes listed below.
+- Toolchain updated to Go **1.27.4** and `godebug multipathtcp=0`
+  (CVE-2026-98432 mitigation).
+- Release and CI builds now embed **client_v2** (SolidJS); upstream also made
+  it the default.
+- DNS runtime bumped to `github.com/fcchbjm/dnsproxy` **v0.84.0**
+  (context-aware `Exchange`, validated `proxy.Config`, stricter caching and
+  parallel-mode semantics, `datasize.ByteSize` cache size).
+- Release packing moved to upstream's `pack-release` target; fork-specific
+  `VERSION_DOWNLOAD_URL` / `ANNOUNCEMENT_URL` overrides live there.
+- Dark theme colors in the new web interface have been aligned with the design system, including dashboard charts, notifications, dropdowns, and tooltips.
+
+### Fixed
+
+- The *Top upstreams* percentages in the new web interface not adding up to 100% ([#8738]).
+
+- The certificate details in the new web interface being hidden by a validation warning or a key/certificate mismatch ([#8727]).
+
+- The stats period labels in the new web interface showing the `last_days` key instead of the text in German and Slovak ([#8736]).
+
+- The custom rules examples and the rules editor placeholder in the new web interface missing the `^` at the end of block and allow rules ([#8726]).
+
+- Renaming a blocklist in the new web interface disabling it ([#8728]).
+
+- Caching behavior under reverse proxies ([#8599]).
+
+- Query log HTTP API panicking on invalid `limit` and `offset` query parameter values.
+
+[#8599]:       https://github.com/AdGuardTeam/AdGuardHome/issues/8599
+[#8726]:       https://github.com/AdguardTeam/AdGuardHome/issues/8726
+[#8727]:       https://github.com/AdguardTeam/AdGuardHome/issues/8727
+[#8728]:       https://github.com/AdguardTeam/AdGuardHome/issues/8728
+[#8736]:       https://github.com/AdguardTeam/AdGuardHome/issues/8736
+[#8738]:       https://github.com/AdguardTeam/AdGuardHome/issues/8738
+
+### Notes
+
+- GitHub Releases + GHCR remain the distribution channel; Docker images do
+  **not** inject `UPDATE_INDEX_URL` (upgrade via `docker pull`).
+- PPv2 backend semantics are unchanged from prior fork releases.
+
+<!--
+NOTE: Add new changes ABOVE THIS COMMENT.
+-->
+
 ## [v1.0.0] - 2026-11-19
 
 See also the [v1.0.0 GitHub milestone][ms-v1.0.0].
@@ -52,6 +115,8 @@ See also the [v1.0.0 GitHub milestone][ms-v1.0.0].
 - Client settings in the new web interface: *Use global settings* now applies to Protection only, blocked services have a separate *Use global blocked services* switch, and upstream DNS servers and the DNS cache are always editable.
 
 ### Fixed
+
+- The new web interface blanking out or silently reloading itself when the DNS server was not running or its status check failed; it now explains the state, lists the likely causes of a stopped DNS server, and offers a retry when the check itself failed.
 
 - The new web interface install wizard counting the minimum password length in UTF-8 bytes and letting the server reject a password it had accepted; the minimum is now counted in characters, as the server does.
 
@@ -149,7 +214,6 @@ See also the [v1.0.0 GitHub milestone][ms-v1.0.0].
     - `--no-etc-hosts`.
     - `--port`/`-p`.
 
-[#8656]:       https://github.com/AdGuardTeam/AdGuardHome/issues/8656
 [#8565]:       https://github.com/AdguardTeam/AdGuardHome/issues/8565
 [#8572]:       https://github.com/AdguardTeam/AdGuardHome/issues/8572
 [#8608]:       https://github.com/AdguardTeam/AdGuardHome/issues/8608
@@ -160,6 +224,7 @@ See also the [v1.0.0 GitHub milestone][ms-v1.0.0].
 [#8637]:       https://github.com/AdguardTeam/AdGuardHome/issues/8637
 [#8638]:       https://github.com/AdguardTeam/AdGuardHome/issues/8638
 [#8644]:       https://github.com/AdguardTeam/AdGuardHome/issues/8644
+[#8656]:       https://github.com/AdGuardTeam/AdGuardHome/issues/8656
 [#8658]:       https://github.com/AdguardTeam/AdGuardHome/issues/8658
 [#8661]:       https://github.com/AdguardTeam/AdGuardHome/issues/8661
 [#8670]:       https://github.com/AdguardTeam/AdGuardHome/issues/8670
@@ -233,39 +298,6 @@ See also the [v0.107.79 GitHub milestone][ms-v0.107.79].
 [go-1.26.6]: https://groups.google.com/g/golang-announce/c/94pEornpRlI
 
 [ms-v0.107.79]: https://github.com/AdguardTeam/AdGuardHome/milestone/114?closed=1
-
-## [v0.1.0] - TBA
-
-> Fork's own version number (`github.com/fcchbjm/AdGuardHome`), independent of
-> upstream AdGuard Home versions.  Its content corresponds to upstream v1.0.0.
-
-### Added
-
-- Proxy Protocol v2 DNS settings in the **client_v2** (SolidJS) Web UI
-  (`trusted_proxies`, `tcp_proxy_protocol_v2_enabled`,
-  `tls_proxy_protocol_v2_enabled`).
-- OpenAPI `DNSConfig` documents the PPv2 fields above.
-
-### Changed
-
-- Merged upstream **v1.0.0** (`7d2f42b0`, 100 commits since `369d4761`), including
-  the new UI release model, Cloudflare DNS defaults for new installations, and
-  the removal of deprecated HTTP APIs and CLI flags.
-- Toolchain updated to Go **1.27.4** and `godebug multipathtcp=0`
-  (CVE-2026-98432 mitigation).
-- Release and CI builds now embed **client_v2** (SolidJS); upstream also made
-  it the default.
-- DNS runtime bumped to `github.com/fcchbjm/dnsproxy` **v0.84.0**
-  (context-aware `Exchange`, validated `proxy.Config`, stricter caching and
-  parallel-mode semantics, `datasize.ByteSize` cache size).
-- Release packing moved to upstream's `pack-release` target; fork-specific
-  `VERSION_DOWNLOAD_URL` / `ANNOUNCEMENT_URL` overrides live there.
-
-### Notes
-
-- GitHub Releases + GHCR remain the distribution channel; Docker images do
-  **not** inject `UPDATE_INDEX_URL` (upgrade via `docker pull`).
-- PPv2 backend semantics are unchanged from prior fork releases.
 
 ## [v0.107.78] - 2026-07-13
 
@@ -3944,11 +3976,11 @@ See also the [v0.104.2 GitHub milestone][ms-v0.104.2].
 
 <!--
 [Unreleased]: https://github.com/fcchbjm/AdGuardHome/compare/v0.1.0...HEAD
-[v0.1.0]:     https://github.com/fcchbjm/AdGuardHome/compare/v0.107.78...v0.1.0
-[v1.0.1]:     https://github.com/fcchbjm/AdGuardHome/compare/v1.0.0...v1.0.1
+[v0.1.1]:     https://github.com/fcchbjm/AdGuardHome/compare/v0.1.0...v0.1.1
 -->
 
-[Unreleased]: https://github.com/fcchbjm/AdGuardHome/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/fcchbjm/AdGuardHome/compare/v0.1.0...HEAD
+[v0.1.0]:     https://github.com/fcchbjm/AdGuardHome/compare/v0.107.78...v0.1.0
 [v1.0.0]:     https://github.com/fcchbjm/AdGuardHome/compare/v0.107.80...v1.0.0
 [v0.107.80]:  https://github.com/fcchbjm/AdGuardHome/compare/v0.107.79...v0.107.80
 [v0.107.79]:  https://github.com/fcchbjm/AdGuardHome/compare/v0.107.78...v0.107.79

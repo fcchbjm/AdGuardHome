@@ -7,6 +7,7 @@ import (
 	"github.com/fcchbjm/AdGuardHome/internal/agh"
 	"github.com/fcchbjm/AdGuardHome/internal/aghhttp"
 	"github.com/fcchbjm/AdGuardHome/internal/client"
+	"github.com/fcchbjm/AdGuardHome/internal/configmgr"
 	"github.com/fcchbjm/AdGuardHome/internal/filtering"
 	"github.com/stretchr/testify/require"
 )
@@ -22,8 +23,8 @@ func newClientsContainer(tb testing.TB) (c *clientsContainer) {
 	err := c.Init(
 		ctx,
 		testLogger,
-		&clientsConfig{
-			Sources: &clientSourcesConfig{},
+		&configmgr.ClientsConfig{
+			Sources: &configmgr.ClientSourcesConfig{},
 		},
 		client.EmptyDHCP{},
 		nil,
