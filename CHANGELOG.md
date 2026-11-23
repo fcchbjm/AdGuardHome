@@ -62,6 +62,14 @@ NOTE: Add new changes ABOVE THIS COMMENT.
 - Release packing moved to upstream's `pack-release` target; fork-specific
   `VERSION_DOWNLOAD_URL` / `ANNOUNCEMENT_URL` overrides live there.
 - Dark theme colors in the new web interface have been aligned with the design system, including dashboard charts, notifications, dropdowns, and tooltips.
+- CI workflows now use the current GitHub Actions releases and toolchain
+  (Go **1.27.4**, Node **24**).  This also drops the deprecated `set-output`
+  command, the `install` input of `setup-buildx-action`, and the manual
+  `~/go/pkg/mod` cache step that duplicated `setup-go`'s built-in cache and made
+  `actions/cache` fail to restore with `Cannot open: File exists`.
+- The filtering caches now use `golibs/cache/bytecache` instead of the
+  deprecated `golibs/cache`, which `golibs` v0.35.20 (required by dnsproxy
+  v0.84.0) marked as deprecated.  Cache size semantics are unchanged.
 
 ### Fixed
 
@@ -78,6 +86,10 @@ NOTE: Add new changes ABOVE THIS COMMENT.
 - Caching behavior under reverse proxies ([#8599]).
 
 - Query log HTTP API panicking on invalid `limit` and `offset` query parameter values.
+
+- Building and testing `client_v2` on Windows, where `webpack.common.js` resolved
+  the project directory into `D:\D:\...` and Vitest failed on Solid's
+  `/@solid-refresh` virtual module.
 
 [#8599]:       https://github.com/AdGuardTeam/AdGuardHome/issues/8599
 [#8726]:       https://github.com/AdguardTeam/AdGuardHome/issues/8726
