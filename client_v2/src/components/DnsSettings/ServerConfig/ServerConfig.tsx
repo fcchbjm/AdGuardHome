@@ -15,6 +15,7 @@ import { getRateLimitSummary, getBlockingModeSummary, getUpstreamServersSummary 
 import theme from 'panel/lib/theme';
 import { IP_VERSION, IPV4_SUBNET_PREFIX, IPV6_SUBNET_PREFIX } from 'panel/helpers/constants';
 import { useDialog } from 'panel/hooks/useDialog';
+import { useSwitchState } from 'panel/hooks/useSwitchState';
 
 import { RateLimitDialog } from './blocks/RateLimitDialog';
 import { SubnetPrefixV4Dialog } from './blocks/SubnetPrefixV4Dialog';
@@ -39,6 +40,34 @@ export const ServerConfig = () => {
     );
 
     const processing = () => dnsConfigState.processingSetConfig;
+
+    const [ednsCsEnabled, setEdnsCsEnabled] = useSwitchState(
+        () => dnsConfigState.edns_cs_enabled,
+        processing,
+    );
+    const [dnssecEnabled, setDnssecEnabled] = useSwitchState(
+        () => dnsConfigState.dnssec_enabled,
+        processing,
+    );
+    const [ipv6Resolution, setIpv6Resolution] = useSwitchState(
+        () => !dnsConfigState.disable_ipv6,
+        processing,
+    );
+
+    const handleEdnsCsToggle = (checked: boolean) => {
+        setEdnsCsEnabled(checked);
+        toggleEdnsCsEnabled();
+    };
+
+    const handleDnssecToggle = (checked: boolean) => {
+        setDnssecEnabled(checked);
+        toggleDnssecEnabled();
+    };
+
+    const handleIpv6ResolutionToggle = (checked: boolean) => {
+        setIpv6Resolution(checked);
+        toggleDisableIPv6();
+    };
 
     return (
         <div>
@@ -100,8 +129,8 @@ export const ServerConfig = () => {
                 id="edns_client_subnet"
                 title={intl.getMessage('dns_edns_client_subnet')}
                 description={intl.getMessage('dns_edns_client_subnet_desc')}
-                checked={dnsConfigState.edns_cs_enabled}
-                onChange={() => toggleEdnsCsEnabled()}
+                checked={ednsCsEnabled()}
+                onChange={handleEdnsCsToggle}
                 onClick={ednsDialog.openDialog}
                 divider
             />
@@ -111,8 +140,8 @@ export const ServerConfig = () => {
                 id="dnssec"
                 title={intl.getMessage('dns_dnssec')}
                 description={intl.getMessage('dns_dnssec_desc')}
-                checked={dnsConfigState.dnssec_enabled}
-                onChange={() => toggleDnssecEnabled()}
+                checked={dnssecEnabled()}
+                onChange={handleDnssecToggle}
             />
 
             <SettingRow
@@ -120,8 +149,8 @@ export const ServerConfig = () => {
                 id="ipv6_resolution"
                 title={intl.getMessage('dns_ipv6_resolution')}
                 description={intl.getMessage('dns_ipv6_resolution_desc')}
-                checked={!dnsConfigState.disable_ipv6}
-                onChange={() => toggleDisableIPv6()}
+                checked={ipv6Resolution()}
+                onChange={handleIpv6ResolutionToggle}
             />
 
             <SettingRow

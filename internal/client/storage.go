@@ -14,6 +14,7 @@ import (
 	"github.com/AdguardTeam/golibs/hostsfile"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/AdguardTeam/golibs/netutil"
+	"github.com/AdguardTeam/golibs/service"
 	"github.com/AdguardTeam/golibs/timeutil"
 	"github.com/fcchbjm/AdGuardHome/internal/arpdb"
 	"github.com/fcchbjm/AdGuardHome/internal/dhcpsvc"
@@ -200,9 +201,11 @@ func NewStorage(ctx context.Context, conf *StorageConfig) (s *Storage, err error
 	return s, nil
 }
 
-// Start starts the goroutines for updating the runtime client information.
-//
-// TODO(s.chzhen):  Pass context.
+// type check
+var _ service.Interface = (*Storage)(nil)
+
+// Start implements the [service.Interface] for *Storage.  It starts the
+// goroutines for updating the runtime client information.
 func (s *Storage) Start(ctx context.Context) (err error) {
 	go s.periodicARPUpdate(ctx)
 	go s.handleHostsUpdates(ctx)
@@ -210,9 +213,10 @@ func (s *Storage) Start(ctx context.Context) (err error) {
 	return nil
 }
 
-// Shutdown gracefully stops the client storage.
+// Shutdown implements the [service.Interface] interface for *Storage.  It
+// gracefully stops the client storage.
 //
-// TODO(s.chzhen):  Pass context.
+// TODO(a.garipov):  Use context.
 func (s *Storage) Shutdown(_ context.Context) (err error) {
 	close(s.done)
 
@@ -410,7 +414,7 @@ func (s *Storage) setWHOISInfo(ctx context.Context, ip netip.Addr, wi *whois.Inf
 func (s *Storage) Add(ctx context.Context, p *Persistent) (err error) {
 	defer func() { err = errors.Annotate(err, "adding client: %w") }()
 
-	err = p.validate(ctx, s.logger, s.allowedTags)
+	err = p.validate(ctx, s.logger, s.allowedTags, true)
 	if err != nil {
 		// Don't wrap the error since there is already an annotation deferred.
 		return err
@@ -632,7 +636,7 @@ func (s *Storage) RemoveByName(ctx context.Context, name string) (ok bool) {
 func (s *Storage) Update(ctx context.Context, name string, p *Persistent) (err error) {
 	defer func() { err = errors.Annotate(err, "updating client: %w") }()
 
-	err = p.validate(ctx, s.logger, s.allowedTags)
+	err = p.validate(ctx, s.logger, s.allowedTags, false)
 	if err != nil {
 		// Don't wrap the error since there is already an annotation deferred.
 		return err
@@ -646,7 +650,7 @@ func (s *Storage) Update(ctx context.Context, name string, p *Persistent) (err e
 		return fmt.Errorf("client %q is not found", name)
 	}
 
-	// Client p has a newly generated UID, so replace it with the stored one.
+	// Client p has an empty UID, so replace it with the stored one.
 	//
 	// TODO(s.chzhen):  Remove when frontend starts handling UIDs.
 	p.UID = stored.UID

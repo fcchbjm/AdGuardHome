@@ -18,7 +18,6 @@ import (
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/AdguardTeam/golibs/osutil/executil"
-	"github.com/fcchbjm/AdGuardHome/internal/agh"
 	"github.com/fcchbjm/AdGuardHome/internal/aghalg"
 	"github.com/fcchbjm/AdGuardHome/internal/aghhttp"
 	"github.com/fcchbjm/AdGuardHome/internal/aghnet"
@@ -439,7 +438,9 @@ func shutdownSrv3(ctx context.Context, l *slog.Logger, srv *http3.Server) {
 // PasswordMinRunes is the minimum length of user's password in runes.
 const PasswordMinRunes = 8
 
-// Apply new configuration, start DNS server, restart Web server
+// handleInstallConfigure handles the installation configuration request.  It
+// validates the request and then finalizes the installation by applying the
+// provided settings.
 func (web *webAPI) handleInstallConfigure(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	l := web.logger
@@ -529,15 +530,7 @@ func (web *webAPI) finalizeInstall(
 	// moment we'll allow setting up TLS in the initial configuration or the
 	// configuration itself will use HTTPS protocol, because the underlying
 	// functions potentially restart the HTTPS server.
-	err = startMods(
-		ctx,
-		web.baseLogger,
-		web.tlsManager,
-		web.confModifier,
-		web.httpReg,
-		web.conf.workDir,
-		web.hostsContainer,
-	)
+	err = web.startMods(ctx)
 	if err != nil {
 		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusInternalServerError, "%s", err)
 
@@ -547,7 +540,7 @@ func (web *webAPI) finalizeInstall(
 	err = config.write(
 		ctx,
 		web.logger,
-		web.tlsManager,
+		web.tlsManager.ExtendedTLSConfig(),
 		web.auth,
 		web.conf.workDir,
 		web.conf.confPath,
@@ -632,33 +625,45 @@ func decodeApplyConfigReq(r io.Reader) (req *applyConfigReq, restartHTTP bool, e
 	return req, restartHTTP, err
 }
 
-// startMods initializes and starts the DNS server after installation.
-// baseLogger, tlsMgr, confModifier, and httpReg must not be nil.
-func startMods(
-	ctx context.Context,
-	baseLogger *slog.Logger,
-	tlsMgr *tlsManager,
-	confModifier agh.ConfigModifier,
-	httpReg aghhttp.Registrar,
-	workDir string,
-	hc *aghnet.HostsContainer,
-) (err error) {
-	statsDir, querylogDir, err := checkStatsAndQuerylogDirs(config, workDir)
+// startMods initializes the DNS and DoH servers and starts the DNS one after
+// installation.
+func (web *webAPI) startMods(ctx context.Context) (err error) {
+	statsDir, querylogDir, err := checkStatsAndQuerylogDirs(config, web.conf.workDir)
 	if err != nil {
+		// Don't wrap the error, because it's informative enough as is.
 		return err
 	}
 
-	err = initDNS(ctx, baseLogger, tlsMgr, confModifier, httpReg, statsDir, querylogDir, hc)
+	err = initDNS(
+		ctx,
+		web.baseLogger,
+		web.tlsManager,
+		web.confModifier,
+		web.httpReg,
+		statsDir,
+		querylogDir,
+		web.hostsContainer,
+	)
 	if err != nil {
+		// Don't wrap the error, because it's informative enough as is.
 		return err
 	}
 
-	tlsMgr.start(ctx)
+	// The web server is already serving requests during the installation, so
+	// set the DoH server before starting the DNS one to avoid a window where
+	// DoH requests are answered by the authentication middleware.
+	doHSrv := newDoHServer(&doHServerConfig{
+		handler: globalContext.dnsServer,
+		logger:  web.baseLogger.With(slogutil.KeyPrefix, "doh_server"),
+		routes:  config.HTTPConfig.DoH.Routes,
+	})
+	web.setDoHServer(doHSrv)
 
-	err = startDNSServer()
+	err = startDNSServer(ctx)
 	if err != nil {
-		closeDNSServer(ctx)
+		closeDNSServer(ctx, web.baseLogger)
 
+		// Don't wrap the error, because it's informative enough as is.
 		return err
 	}
 

@@ -282,8 +282,6 @@ set_cpu() {
 
 # Function fix_darwin performs some configuration changes for macOS if needed.
 #
-# TODO(a.garipov): Remove after the final v0.107.0 release.
-#
 # See https://github.com/fcchbjm/AdGuardHome/issues/2443.
 fix_darwin() {
 	if [ "$os" != 'darwin' ]; then
@@ -417,7 +415,7 @@ please, restart it with root privileges'
 #
 # TODO(e.burkov): Try to avoid restarting.
 rerun_with_root() {
-	script_url='https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh'
+	script_url='https://raw.githubusercontent.com/fcchbjm/AdGuardHome/master/scripts/install.sh'
 	readonly script_url
 
 	r='-R'

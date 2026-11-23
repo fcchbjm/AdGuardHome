@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net/netip"
 
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
@@ -92,6 +91,9 @@ func (iface *dhcpInterfaceV6) handleDHCPv6(
 
 // handleSolicit handles messages of type SOLICIT.  req must not be nil and must
 // be a valid DHCPv6 message of type SOLICIT.  fd must be valid.
+//
+// TODO(e.burkov):  Advertise all valid IA_NA options instead of only the first
+// valid one.
 func (iface *dhcpInterfaceV6) handleSolicit(
 	ctx context.Context,
 	fd *frameData6,
@@ -108,42 +110,64 @@ func (iface *dhcpInterfaceV6) handleSolicit(
 	iface.common.indexMu.Lock()
 	defer iface.common.indexMu.Unlock()
 
-	lease, iaid := iface.allocateForSolicit(ctx, fd.ether.SrcMAC, req)
+	iana, ok := iface.firstIANA(ctx, req)
+	if !ok {
+		// A Solicit message with no valid IA_NA options asks the server to
+		// assign no addresses, so there is nothing to advertise, and the
+		// clients are required to ignore an Advertise message carrying no
+		// addresses anyway.  Discard it.
+		//
+		// See RFC 9915 Sections 16 and 18.2.9.
+		l.DebugContext(ctx, "no valid ia_na in solicit")
+
+		return nil
+	}
+
+	lease := iface.allocateForSolicit(ctx, fd.ether.SrcMAC)
+	msgType := layers.DHCPv6MsgTypeAdvertise
+
+	// A Solicit with a Rapid Commit option is answered with a Reply message,
+	// but only when there is a lease to commit.  Otherwise, an Advertise
+	// message is sent, even if the client has requested the Rapid Commit
+	// exchange.
+	//
+	// See RFC 9915 Sections 18.3 and 18.3.1.
+	_, isRapidCommit := findOption6(req.Options, layers.DHCPv6OptRapidCommit)
+	isRapidCommit = isRapidCommit && lease != nil
+	if isRapidCommit {
+		msgType, lease, isRapidCommit = iface.commitRapidly(ctx, req, lease)
+	}
 
 	resp := &layers.DHCPv6{
-		MsgType:       layers.DHCPv6MsgTypeAdvertise,
+		MsgType:       msgType,
 		TransactionID: req.TransactionID,
+		Options:       iface.newSolicitRespOpts(fd, req, cliID, iana.ID, lease, isRapidCommit),
 	}
-
-	if lease == nil {
-		resp.Options = iface.newSolicitRespOpts(fd, req, cliID, iaid, nil, false)
-
-		return respond6(fd, resp)
-	}
-
-	_, isRapidCommit := findOption6(req.Options, layers.DHCPv6OptRapidCommit)
-
-	if !isRapidCommit {
-		resp.Options = iface.newSolicitRespOpts(fd, req, cliID, iaid, lease, false)
-
-		return respond6(fd, resp)
-	}
-
-	err = iface.commit(ctx, req, lease)
-	if err != nil {
-		l.WarnContext(ctx, "committing rapid leases", slogutil.KeyError, err)
-		isRapidCommit = false
-	} else {
-		// The server will also send a Reply in response to a Solicit with a
-		// Rapid Commit option.
-		//
-		// See RFC 9915 Section 18.3.
-		resp.MsgType = layers.DHCPv6MsgTypeReply
-	}
-
-	resp.Options = iface.newSolicitRespOpts(fd, req, cliID, iaid, lease, isRapidCommit)
 
 	return respond6(fd, resp)
+}
+
+// commitRapidly commits the lease for a Solicit with a Rapid Commit option and
+// returns the message type and the lease to advertise, as well as whether the
+// Rapid Commit option should be included in the response.  iface.common.indexMu
+// must be locked.
+func (iface *dhcpInterfaceV6) commitRapidly(
+	ctx context.Context,
+	req *layers.DHCPv6,
+	lease *Lease,
+) (msgType layers.DHCPv6MsgType, l *Lease, rapidCommit bool) {
+	err := iface.commit(ctx, req, lease)
+	if err != nil {
+		iface.common.logger.WarnContext(ctx, "committing rapid leases", slogutil.KeyError, err)
+
+		return layers.DHCPv6MsgTypeAdvertise, nil, false
+	}
+
+	// The server will also send a Reply in response to a Solicit with a Rapid
+	// Commit option.
+	//
+	// See RFC 9915 Section 18.3.
+	return layers.DHCPv6MsgTypeReply, lease, true
 }
 
 // handleRequest handles messages of type REQUEST.  req must not be nil and must
@@ -280,8 +304,8 @@ func (iface *dhcpInterfaceV6) handleRenew(
 		return respond6(fd, resp)
 	}
 
-	ianaOpt := iface.ianaForUpdate(ctx, req, iana, fd.ether.SrcMAC)
-	resp.Options = iface.newUpdateRespOpts(fd, req, cliID, ianaOpt)
+	respIANA := iface.ianaForUpdate(ctx, req, iana, fd.ether.SrcMAC)
+	resp.Options = iface.newUpdateRespOpts(fd, req, cliID, respIANA)
 
 	return respond6(fd, resp)
 }
@@ -289,10 +313,9 @@ func (iface *dhcpInterfaceV6) handleRenew(
 // handleRebind handles messages of type REBIND.  req must not be nil and must
 // be a valid DHCPv6 message of type REBIND, fd must be valid.
 //
-// TODO(e.burkov):  The current implementation rebinds only the first valid
-// IA_NA option.  It does not verify that the addresses in the IA match the
-// stored lease, since clients are identified by MAC address rather than
-// DUID+IAID.
+// TODO(e.burkov):  Rebind all valid IA_NA options instead of only the first
+// valid one.  It does not verify that the addresses in the IA match the stored
+// lease, since clients are identified by MAC address rather than DUID+IAID.
 func (iface *dhcpInterfaceV6) handleRebind(
 	ctx context.Context,
 	fd *frameData6,
@@ -326,8 +349,8 @@ func (iface *dhcpInterfaceV6) handleRebind(
 		return respond6(fd, resp)
 	}
 
-	ianaOpt := iface.ianaForUpdate(ctx, req, iana, fd.ether.SrcMAC)
-	resp.Options = iface.newUpdateRespOpts(fd, req, cliID, ianaOpt)
+	respIANA := iface.ianaForUpdate(ctx, req, iana, fd.ether.SrcMAC)
+	resp.Options = iface.newUpdateRespOpts(fd, req, cliID, respIANA)
 
 	return respond6(fd, resp)
 }
@@ -336,8 +359,7 @@ func (iface *dhcpInterfaceV6) handleRebind(
 // and must be a valid DHCPv6 message of type INFORMATION-REQUEST.  fd must be
 // valid.
 //
-// TODO(e.burkov):  The current implementation does not handle relay-forwarded
-// INFORMATION-REQUEST messages.
+// TODO(e.burkov):  Handle relay-forwarded INFORMATION-REQUEST messages.
 func (iface *dhcpInterfaceV6) handleInfo(
 	ctx context.Context,
 	fd *frameData6,
@@ -398,22 +420,23 @@ func (iface *dhcpInterfaceV6) handleRelease(
 		TransactionID: req.TransactionID,
 	}
 
-	iaid, ip := iface.ipForRelease(ctx, req)
-	if ip == (netip.Addr{}) {
-		resp.Options = iface.newUpdateRespOpts(fd, req, cliID, layers.DHCPv6Option{})
+	iface.common.indexMu.Lock()
+	defer iface.common.indexMu.Unlock()
+
+	iaid, lease, ok := iface.leaseForIANAAddr(ctx, req, fd.ether.SrcMAC)
+	if !ok {
+		// There are no leases to remove, but the message is processed
+		// successfully, so the Reply carries the Status Code option with the
+		// value Success and no IA options.
+		//
+		// See RFC 9915 Section 18.3.7.
+		resp.Options = iface.newSuccessRespOpts(fd, req, cliID, layers.DHCPv6Option{})
 
 		return respond6(fd, resp)
 	}
 
-	key := macToKey(fd.ether.SrcMAC)
-
-	iface.common.indexMu.Lock()
-	defer iface.common.indexMu.Unlock()
-
-	lease, hasLease := iface.common.leases[key]
-	if !hasLease || lease.IP != ip {
-		respIANA := newIANAWithStatus(iaid, layers.DHCPv6StatusCodeNoBinding)
-		resp.Options = iface.newUpdateRespOpts(fd, req, cliID, respIANA)
+	if lease == nil {
+		resp.Options = iface.newNoBindingRespOpts(fd, req, cliID, iaid)
 
 		return respond6(fd, resp)
 	}
@@ -422,11 +445,9 @@ func (iface *dhcpInterfaceV6) handleRelease(
 	if err != nil {
 		l.ErrorContext(ctx, "removing lease", slogutil.KeyError, err)
 
-		respIANA := newIANAWithStatus(iaid, layers.DHCPv6StatusCodeNoBinding)
-		resp.Options = iface.newUpdateRespOpts(fd, req, cliID, respIANA)
+		resp.Options = iface.newNoBindingRespOpts(fd, req, cliID, iaid)
 	} else {
-		respIANA := &IANAOption{ID: iaid}
-		resp.Options = iface.newUpdateRespOpts(fd, req, cliID, respIANA.Encode())
+		resp.Options = iface.newSuccessRespOpts(fd, req, cliID, IANAOption{ID: iaid}.Encode())
 	}
 
 	return respond6(fd, resp)
@@ -435,7 +456,8 @@ func (iface *dhcpInterfaceV6) handleRelease(
 // handleDecline handles messages of type DECLINE.  req must not be nil and must
 // be a valid DHCPv6 message of type DECLINE.  fd must be valid.
 //
-// TODO(e.burkov):  Implement.  This is a stub for now.
+// TODO(e.burkov):  Verify all IA_NA options instead of handling only the first
+// one.
 func (iface *dhcpInterfaceV6) handleDecline(
 	ctx context.Context,
 	fd *frameData6,
@@ -449,5 +471,42 @@ func (iface *dhcpInterfaceV6) handleDecline(
 	l := iface.common.logger
 	l.DebugContext(ctx, "handling message", "type", req.MsgType, "cli_id", cliID)
 
-	return nil
+	iface.common.indexMu.Lock()
+	defer iface.common.indexMu.Unlock()
+
+	resp := &layers.DHCPv6{
+		MsgType:       layers.DHCPv6MsgTypeReply,
+		TransactionID: req.TransactionID,
+	}
+
+	iaid, lease, ok := iface.leaseForIANAAddr(ctx, req, fd.ether.SrcMAC)
+	if !ok {
+		// There are no addresses to decline, but the message is processed
+		// successfully, so the Reply carries the Status Code option with the
+		// value Success and no IA options.
+		//
+		// See RFC 9915 Section 18.3.8.
+		resp.Options = iface.newSuccessRespOpts(fd, req, cliID, layers.DHCPv6Option{})
+
+		return respond6(fd, resp)
+	}
+
+	if lease == nil {
+		resp.Options = iface.newNoBindingRespOpts(fd, req, cliID, iaid)
+
+		return respond6(fd, resp)
+	}
+
+	l.WarnContext(ctx, "lease is unavailable", "ip", lease.IP)
+
+	err = iface.common.blockLease(ctx, lease, iface.common.clock.Now())
+	if err != nil {
+		l.ErrorContext(ctx, "blocking lease", slogutil.KeyError, err)
+
+		resp.Options = iface.newNoBindingRespOpts(fd, req, cliID, iaid)
+	} else {
+		resp.Options = iface.newSuccessRespOpts(fd, req, cliID, IANAOption{ID: iaid}.Encode())
+	}
+
+	return respond6(fd, resp)
 }

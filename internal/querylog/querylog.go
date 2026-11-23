@@ -14,6 +14,7 @@ import (
 	"github.com/fcchbjm/AdGuardHome/internal/agh"
 	"github.com/fcchbjm/AdGuardHome/internal/aghhttp"
 	"github.com/fcchbjm/AdGuardHome/internal/aghnet"
+	"github.com/fcchbjm/AdGuardHome/internal/configmgr"
 	"github.com/fcchbjm/AdGuardHome/internal/filtering"
 	"github.com/miekg/dns"
 )
@@ -26,8 +27,9 @@ type QueryLog interface {
 	// Add adds a log entry.
 	Add(params *AddParams)
 
-	// WriteDiskConfig writes the query log configuration to c.
-	WriteDiskConfig(c *Config)
+	// WriteDiskConfig writes the query log configuration to the given confs, dc
+	// and dnsConf must not be nil.
+	WriteDiskConfig(dc *configmgr.QueryLogConfig, dnsConf *configmgr.DNSConfig)
 
 	// ShouldLog returns true if request for the host should be logged.
 	ShouldLog(host string, qType, qClass uint16, ids []string) bool

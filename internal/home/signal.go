@@ -23,15 +23,26 @@ type signalHandler struct {
 	// logger is used to log the operation of the signal handler.
 	logger *slog.Logger
 
-	// mu protects clientStorage and tlsManager.
+	// mu protects clientStorage, hostsContainer, hcWatcher, tlsManager, and
+	// web.
 	mu *sync.Mutex
 
 	// clientStorage is used to reload information about runtime clients with an
 	// ARP source.
 	clientStorage *client.Storage
 
+	// hostsContainer is cleaned up on shutdown, if any.
+	hostsContainer *aghnet.HostsContainer
+
+	// hcWatcher is the watcher of [signalHandler.hostsContainer] to be shut
+	// down, if any.
+	hcWatcher service.Interface
+
 	// tlsManager is used to reload the TLS configuration.
 	tlsManager aghtls.Manager
+
+	// web is the web API server.
+	web service.Shutdowner
 
 	// signals receives incoming signals.
 	signals <-chan os.Signal
@@ -55,6 +66,15 @@ func newSignalHandler(
 	}
 }
 
+// addHostsContainer stores the hosts container and its watcher.
+func (h *signalHandler) addHostsContainer(hc *aghnet.HostsContainer, w service.Interface) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.hostsContainer = hc
+	h.hcWatcher = w
+}
+
 // addClientStorage stores the client storage.
 func (h *signalHandler) addClientStorage(s *client.Storage) {
 	h.mu.Lock()
@@ -69,6 +89,14 @@ func (h *signalHandler) addTLSManager(m aghtls.Manager) {
 	defer h.mu.Unlock()
 
 	h.tlsManager = m
+}
+
+// addWeb stores the web API server.
+func (h *signalHandler) addWeb(w *webAPI) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.web = w
 }
 
 // handle processes incoming signals.  It blocks until a signal is received.  It
@@ -96,6 +124,8 @@ func (h *signalHandler) handle(ctx context.Context) {
 			h.reloadConfig(ctx)
 		default:
 			h.shutdown(ctx)
+
+			return
 		}
 	}
 }
@@ -109,6 +139,23 @@ func (h *signalHandler) shutdown(ctx context.Context) {
 		err := h.tlsManager.Shutdown(ctx)
 		if err != nil {
 			h.logger.ErrorContext(ctx, "shutting down tls manager", slogutil.KeyError, err)
+		}
+	}
+
+	if h.web != nil {
+		err := h.web.Shutdown(ctx)
+		if err != nil {
+			h.logger.ErrorContext(ctx, "shutting down web", slogutil.KeyError, err)
+		}
+	}
+
+	cleanup(ctx, h.logger, h.hostsContainer)
+	if h.hcWatcher != nil {
+		err := h.hcWatcher.Shutdown(ctx)
+		if err != nil {
+			// Likely [os.ErrClosed], if the hosts container has already closed
+			// the watcher.
+			h.logger.DebugContext(ctx, "shutting down hosts file watcher", slogutil.KeyError, err)
 		}
 	}
 
@@ -136,9 +183,7 @@ func (h *signalHandler) reloadConfig(ctx context.Context) {
 // [signalHandler].
 type signalHandlerCleanup struct {
 	logger          *slog.Logger
-	hostsContainer  *aghnet.HostsContainer
 	glTokenFileRoot *os.Root
-	hcWatcher       service.Interface
 	done            chan struct{}
 	pidFilePath     string
 	glinetMode      bool
@@ -148,17 +193,11 @@ type signalHandlerCleanup struct {
 func (c *signalHandlerCleanup) cleanup(ctx context.Context) {
 	defer close(c.done)
 
-	cleanup(ctx, c.logger, c.hostsContainer)
 	cleanupAlways(ctx, c.logger, c.pidFilePath)
 
 	if c.glinetMode {
 		err := c.glTokenFileRoot.Close()
 		checkCleanupErr(ctx, c.logger, err, "closing glinet token root")
-	}
-
-	if c.hcWatcher != nil {
-		err := c.hcWatcher.Shutdown(ctx)
-		checkCleanupErr(ctx, c.logger, err, "shutting down hosts file watcher")
 	}
 }
 

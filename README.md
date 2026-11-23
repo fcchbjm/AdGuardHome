@@ -1,3 +1,4 @@
+<!-- markdownlint-disable first-line-h1 no-alt-text no-inline-html -->
 # fcchbjm/AdGuardHome
 
 [![Code Coverage](https://codecov.io/gh/fcchbjm/AdGuardHome/graph/badge.svg?token=1FXVEOOXRA)](https://codecov.io/gh/fcchbjm/AdGuardHome)
@@ -10,7 +11,7 @@ This repository is based on the upstream project [AdguardTeam/AdGuardHome](https
 Key changes in this fork
 
 - DNS forwarding uses [`github.com/fcchbjm/dnsproxy`](https://github.com/fcchbjm/dnsproxy) instead of [`github.com/AdguardTeam/dnsproxy`](https://github.com/AdguardTeam/dnsproxy). See that repo for TLS/TCP tuning, keep-alive, TFO, TLS resumption, inbound PPv2, and related fixes.
-- **PPv2 (DNS-over-TCP / DoT)** in YAML: `dns.tcp-proxy-protocol-v2`, `dns.tls-proxy-protocol-v2`, `dns.trusted_proxies`. Strict on/off semantics; DoT order: PPv2 → TLS → DNS framing. From **v1.0.0**, release builds embed **`client_v2`** (SolidJS), including the PPv2 DNS settings UI.
+- **PPv2 (DNS-over-TCP / DoT)** in YAML: `dns.tcp-proxy-protocol-v2`, `dns.tls-proxy-protocol-v2`, `dns.trusted_proxies`. Strict on/off semantics; DoT order: PPv2 → TLS → DNS framing. From **v0.1.0**, release builds embed **`client_v2`** (SolidJS), including the PPv2 DNS settings UI.
 - **Releases & updates**: when you push a **`v*`** tag, [this repo’s GitHub Actions](.github/workflows/release-fcchbjm.yml) publishes builds whose **`version.json`** download/announcement URLs default to **this repo’s Releases**, and **release binaries** default to checking **`…/releases/latest/download/version.json`**. **Docker images** do **not** bake that update index—upgrade with **`docker pull`**. A local `make build-release` **without** `VERSION_DOWNLOAD_URL`, `ANNOUNCEMENT_URL`, and `UPDATE_INDEX_URL` matches **upstream script defaults**. **`version.txt`** is only `version=<tag>`; URLs live in **`version.json`**.
 
 ## Quick start
@@ -157,6 +158,8 @@ Below is the upstream README content.
   <img src="https://cdn.adtidy.org/public/Adguard/Common/adguard_home.gif" width="800"/>
 </p>
 <hr/>
+
+<!-- markdownlint-enable first-line-h1 no-alt-text no-inline-html -->
 
 AdGuard Home is a network-wide software for blocking ads and tracking. After you set it up, it'll cover ALL your home devices, and you don't need any client-side software for that.
 
@@ -414,13 +417,19 @@ When you need to debug the frontend without recompiling the production version e
 AdGuard Home uses [Playwright](https://playwright.dev) for E2E testing. Tests are located in `tests/e2e`.
 
 **Running Tests:**
-- `npm run test:e2e` – run all tests (headless).
-- `npm run test:e2e:interactive` – run tests interactively.
-- `npm run test:e2e:debug` – run tests in debug mode.
-- `npm run test:e2e:codegen` – generate new test code.
+
+- `npm run test:e2e`: run all tests (headless).
+
+- `npm run test:e2e:interactive`: run tests interactively.
+
+- `npm run test:e2e:debug`: run tests in debug mode.
+
+- `npm run test:e2e:codegen`: generate new test code.
 
 **Setup:**
+
 1. Run `npm install` to install dependencies.
+
 2. Run `npx playwright install` to set up required browsers.
 
 > **Warning:** Playwright will download and install its own browser binaries for testing, which may differ from the browsers installed on your system.
@@ -512,6 +521,8 @@ Please note that these projects are not affiliated with AdGuard, but are made by
 - [Zabbix Template for AdGuard Home](https://github.com/diasdmhub/AdGuard_Home_Zabbix_Template) by [@diasdmhub](https://github.com/diasdmhub).
 
 - [Chocolatey package](https://community.chocolatey.org/packages/adguardhome/) by [niks255](https://community.chocolatey.org/profiles/niks255).
+
+- [ZimaOS App Store listing](https://www.zimaspace.com/zimaos/app-store/app/org.icewhale.adguardhome) by [ZimaOS Team](https://www.zimaspace.com/zimaos).
 
 ## <a href="#acknowledgments" id="acknowledgments" name="acknowledgments">Acknowledgments</a>
 

@@ -14,7 +14,6 @@ import (
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/httphdr"
 	"github.com/AdguardTeam/golibs/testutil"
-	"github.com/fcchbjm/AdGuardHome/internal/agh"
 	"github.com/fcchbjm/AdGuardHome/internal/aghhttp"
 	"github.com/fcchbjm/AdGuardHome/internal/aghtest"
 	"github.com/fcchbjm/AdGuardHome/internal/aghtls"
@@ -51,7 +50,6 @@ func TestWeb_HandleGetProfile(t *testing.T) {
 
 	auth, err := newAuth(testutil.ContextWithTimeout(t, testTimeout), &authConfig{
 		baseLogger:     testLogger,
-		mux:            baseMux,
 		rateLimiter:    emptyRateLimiter{},
 		trustedProxies: testTrustedProxies,
 		dbFilename:     sessionsDB,
@@ -63,21 +61,18 @@ func TestWeb_HandleGetProfile(t *testing.T) {
 
 	t.Cleanup(func() { auth.close(testutil.ContextWithTimeout(t, testTimeout)) })
 
-	tlsMgr, err := newTLSManager(testutil.ContextWithTimeout(t, testTimeout), &tlsManagerConfig{
-		logger:       testLogger,
-		confModifier: agh.EmptyConfigModifier{},
-		manager:      aghtls.EmptyManager{},
+	ctx := testutil.ContextWithTimeout(t, testTimeout)
+	m, err := aghtls.NewDefaultManager(ctx, &aghtls.DefaultManagerConfig{
+		Logger: testLogger,
 	})
 	require.NoError(t, err)
 
 	web := newTestWeb(t, &webConfig{
-		tlsManager: tlsMgr,
+		tlsManager: m,
 		auth:       auth,
 		mux:        baseMux,
 	})
 	require.NoError(t, err)
-
-	globalContext.web = web
 
 	mux := auth.middleware().Wrap(baseMux)
 
@@ -90,8 +85,7 @@ func TestWeb_HandleGetProfile(t *testing.T) {
 	}))
 
 	require.True(t, t.Run("add_user", func(t *testing.T) {
-		ctx := testutil.ContextWithTimeout(t, testTimeout)
-		err = auth.addUser(ctx, user, userPassword)
+		err = auth.addUser(testutil.ContextWithTimeout(t, testTimeout), user, userPassword)
 		require.NoError(t, err)
 
 		w := httptest.NewRecorder()
@@ -123,13 +117,19 @@ func TestWeb_HandlePutProfile(t *testing.T) {
 		OnApply: func(_ context.Context) { isConfigChanged = true },
 	}
 
+	ctx := testutil.ContextWithTimeout(t, testTimeout)
+	m, err := aghtls.NewDefaultManager(ctx, &aghtls.DefaultManagerConfig{
+		Logger: testLogger,
+	})
+	require.NoError(t, err)
+
 	web := newTestWeb(t, &webConfig{
 		mux:            mux,
 		configModifier: confModifier,
 		httpReg:        httpReg,
+		tlsManager:     m,
 	})
 
-	globalContext.web = web
 	mw.set(web)
 
 	var (
@@ -170,10 +170,10 @@ func TestWeb_HandlePutProfile(t *testing.T) {
 		wantBody: "only content-type application/json is allowed\n",
 		wantCode: http.StatusUnsupportedMediaType,
 	}, {
-		req:      newProfileUpdateRequest(http.MethodPut, nil, false),
+		req:      newProfileUpdateRequest(http.MethodPut, nil, true),
 		name:     "empty_body",
-		wantBody: "reading req: EOF\n",
-		wantCode: http.StatusBadRequest,
+		wantBody: `empty body with content-type "application/json" not allowed` + "\n",
+		wantCode: http.StatusUnsupportedMediaType,
 	}, {
 		req:      newProfileUpdateRequest(http.MethodPut, dataInvalidLang, true),
 		name:     "invalid_language",

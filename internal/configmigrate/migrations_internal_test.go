@@ -6,8 +6,8 @@ import (
 
 	"github.com/AdguardTeam/golibs/testutil"
 	"github.com/AdguardTeam/golibs/timeutil"
-	"github.com/fcchbjm/AdGuardHome/internal/dnsforward"
 	"github.com/fcchbjm/AdGuardHome/internal/filtering"
+	"github.com/fcchbjm/dnsproxy/proxy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1852,7 +1852,7 @@ func TestUpgradeSchema27to28(t *testing.T) {
 		},
 		want: yobj{
 			"dns": yobj{
-				"upstream_mode": dnsforward.UpstreamModeLoadBalance,
+				"upstream_mode": proxy.UpstreamModeLoadBalance,
 			},
 			"schema_version": newSchemaVer,
 		},
@@ -1866,7 +1866,7 @@ func TestUpgradeSchema27to28(t *testing.T) {
 		},
 		want: yobj{
 			"dns": yobj{
-				"upstream_mode": dnsforward.UpstreamModeParallel,
+				"upstream_mode": proxy.UpstreamModeParallel,
 			},
 			"schema_version": newSchemaVer,
 		},
@@ -1880,7 +1880,7 @@ func TestUpgradeSchema27to28(t *testing.T) {
 		},
 		want: yobj{
 			"dns": yobj{
-				"upstream_mode": dnsforward.UpstreamModeParallel,
+				"upstream_mode": proxy.UpstreamModeParallel,
 			},
 			"schema_version": newSchemaVer,
 		},
@@ -1894,7 +1894,7 @@ func TestUpgradeSchema27to28(t *testing.T) {
 		},
 		want: yobj{
 			"dns": yobj{
-				"upstream_mode": dnsforward.UpstreamModeFastestAddr,
+				"upstream_mode": proxy.UpstreamModeFastestAddr,
 			},
 			"schema_version": newSchemaVer,
 		},

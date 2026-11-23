@@ -15,7 +15,7 @@ import (
 	"github.com/NYTimes/gziphandler"
 	"github.com/fcchbjm/AdGuardHome/internal/aghhttp"
 	"github.com/fcchbjm/AdGuardHome/internal/aghnet"
-	"github.com/fcchbjm/AdGuardHome/internal/dnsforward"
+	"github.com/fcchbjm/AdGuardHome/internal/aghtls"
 	"github.com/fcchbjm/AdGuardHome/internal/version"
 )
 
@@ -68,8 +68,8 @@ func appendDNSAddrsWithIfaces(dst []string, src []netip.Addr) (res []string, err
 
 // collectDNSAddresses returns the list of DNS addresses the server is listening
 // on, including the addresses on all interfaces in cases of unspecified IPs.
-// tlsMgr must not be nil.
-func collectDNSAddresses(tlsMgr *tlsManager) (addrs []string, err error) {
+// extTLSConf must not be nil.
+func collectDNSAddresses(extTLSConf *aghtls.ExtendedTLSConfig) (addrs []string, err error) {
 	if hosts := config.DNS.BindHosts; len(hosts) == 0 {
 		addrs = appendDNSAddrs(addrs, netutil.IPv4Localhost())
 	} else {
@@ -79,7 +79,8 @@ func collectDNSAddresses(tlsMgr *tlsManager) (addrs []string, err error) {
 		}
 	}
 
-	de := getDNSEncryption(tlsMgr)
+	hasDoHRoutes := len(config.HTTPConfig.DoH.Routes) > 0
+	de := getDNSEncryption(extTLSConf, hasDoHRoutes)
 	if de.https != "" {
 		addrs = append(addrs, de.https)
 	}
@@ -121,7 +122,9 @@ func (web *webAPI) handleStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	l := web.logger
 
-	dnsAddrs, err := collectDNSAddresses(web.tlsManager)
+	extTLSConfig := web.tlsManager.ExtendedTLSConfig()
+
+	dnsAddrs, err := collectDNSAddresses(extTLSConfig)
 	if err != nil {
 		// Don't add a lot of formatting, since the error is already
 		// wrapped by collectDNSAddresses.
@@ -131,13 +134,10 @@ func (web *webAPI) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var (
-		fltConf           *dnsforward.Config
 		protDisabledUntil *time.Time
 		protEnabled       bool
 	)
 	if globalContext.dnsServer != nil {
-		fltConf = &dnsforward.Config{}
-		globalContext.dnsServer.WriteDiskConfig(fltConf)
 		protEnabled, protDisabledUntil = globalContext.dnsServer.UpdatedProtectionStatus(ctx)
 	}
 
@@ -190,16 +190,6 @@ func (web *webAPI) registerControlHandlers() {
 	web.httpReg.Register(http.MethodPost, "/control/update", web.handleUpdate)
 
 	web.httpReg.Register(http.MethodGet, "/control/status", web.handleStatus)
-	web.httpReg.Register(
-		http.MethodPost,
-		"/control/i18n/change_language",
-		web.handleI18nChangeLanguage,
-	)
-	web.httpReg.Register(
-		http.MethodGet,
-		"/control/i18n/current_language",
-		web.handleI18nCurrentLanguage,
-	)
 	web.httpReg.Register(http.MethodGet, "/control/profile", web.handleGetProfile)
 	web.httpReg.Register(http.MethodPut, "/control/profile/update", web.handlePutProfile)
 

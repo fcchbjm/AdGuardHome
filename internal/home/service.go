@@ -9,9 +9,8 @@ import (
 
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
-	"github.com/AdguardTeam/golibs/netutil/urlutil"
 	"github.com/AdguardTeam/golibs/osutil/executil"
-	"github.com/fcchbjm/AdGuardHome/internal/aghnet"
+	"github.com/AdguardTeam/golibs/timeutil"
 	"github.com/fcchbjm/AdGuardHome/internal/aghos"
 	"github.com/fcchbjm/AdGuardHome/internal/ossvc"
 	"github.com/fcchbjm/AdGuardHome/internal/version"
@@ -34,19 +33,20 @@ const svcLogPrefix = "service_manager"
 // constructing a service instance and running it.  Perhaps, deprecate the
 // action.
 type program struct {
-	ctx             context.Context
-	clientBuildFS   fs.FS
-	signals         chan os.Signal
-	done            chan struct{}
-	opts            options
-	baseLogger      *slog.Logger
-	logger          *slog.Logger
-	sigHdlr         *signalHandler
-	hostsContainer  *aghnet.HostsContainer
-	gliNetTokenRoot *os.Root
-	workDir         string
-	confPath        string
-	pidFilePath     string
+	ctx              context.Context
+	clock            timeutil.Clock
+	clientBuildFS    fs.FS
+	signals          chan os.Signal
+	done             chan struct{}
+	opts             options
+	baseLogger       *slog.Logger
+	logger           *slog.Logger
+	sigHdlr          *signalHandler
+	gliNetTokenRoot  *os.Root
+	workDir          string
+	confPath         string
+	pidFilePath      string
+	legacyNoEtcHosts bool
 }
 
 // type check
@@ -69,7 +69,7 @@ func (p *program) Start(_ service.Service) (err error) {
 		p.workDir,
 		p.confPath,
 		p.pidFilePath,
-		p.hostsContainer,
+		p.legacyNoEtcHosts,
 	)
 
 	return nil
@@ -108,7 +108,7 @@ func (p *program) handleRun(
 		WorkingDirectory: pwd,
 		Arguments:        args,
 	}
-	ossvc.ConfigureServiceOptions(svcConfig, version.Full())
+	ossvc.ConfigureServiceOptions(svcConfig, p.clock.Now(), version.Full())
 
 	s, err := service.New(p, svcConfig)
 	if err != nil {
@@ -122,6 +122,7 @@ func (p *program) handleRun(
 // running.  l must not be nil.
 func restartService(ctx context.Context, baseLogger *slog.Logger) (err error) {
 	svcMgr, err := ossvc.NewManager(ctx, &ossvc.ManagerConfig{
+		Clock:              timeutil.SystemClock{},
 		Logger:             baseLogger.With(slogutil.KeyPrefix, svcLogPrefix),
 		CommandConstructor: executil.SystemCommandConstructor{},
 	})
@@ -165,15 +166,18 @@ func handleServiceControlAction(
 	workDir string,
 	confPath string,
 	pidFilePath string,
-	hc *aghnet.HostsContainer,
+	legacyNoEtcHosts bool,
 ) (err error) {
 	actionName := opts.serviceControlAction
 	l.InfoContext(ctx, version.Full())
 	l.InfoContext(ctx, "control", "action", actionName)
 
+	clock := timeutil.SystemClock{}
+
 	// Create a service manager before even a run action, since it picks the
 	// correct system implementation.
 	svcMgr, err := ossvc.NewManager(ctx, &ossvc.ManagerConfig{
+		Clock:              clock,
 		Logger:             baseLogger.With(slogutil.KeyPrefix, svcLogPrefix),
 		CommandConstructor: executil.SystemCommandConstructor{},
 	})
@@ -186,19 +190,20 @@ func handleServiceControlAction(
 		runOpts.serviceControlAction = "run"
 
 		p := &program{
-			ctx:             ctx,
-			clientBuildFS:   clientBuildFS,
-			signals:         signals,
-			done:            done,
-			opts:            runOpts,
-			baseLogger:      baseLogger,
-			logger:          baseLogger.With(slogutil.KeyPrefix, "service"),
-			sigHdlr:         sigHdlr,
-			gliNetTokenRoot: gliNetTokenRoot,
-			workDir:         workDir,
-			confPath:        confPath,
-			pidFilePath:     pidFilePath,
-			hostsContainer:  hc,
+			ctx:              ctx,
+			clock:            clock,
+			clientBuildFS:    clientBuildFS,
+			signals:          signals,
+			done:             done,
+			opts:             runOpts,
+			baseLogger:       baseLogger,
+			logger:           baseLogger.With(slogutil.KeyPrefix, "service"),
+			sigHdlr:          sigHdlr,
+			gliNetTokenRoot:  gliNetTokenRoot,
+			workDir:          workDir,
+			confPath:         confPath,
+			pidFilePath:      pidFilePath,
+			legacyNoEtcHosts: legacyNoEtcHosts,
 		}
 
 		return p.handleRun(ctx, baseLogger, runOpts)
@@ -342,7 +347,7 @@ func handleServiceInstallCmd(
 			"There are a few more things that must be configured before you can use it.\n"+
 			"Click on the link below and follow the Installation Wizard steps to finish setup.\n"+
 			"AdGuard Home is now available at the following addresses:")
-		printHTTPAddresses(ctx, l, urlutil.SchemeHTTP, nil)
+		printHTTPAddresses(ctx, l)
 	}
 
 	return nil

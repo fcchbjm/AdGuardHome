@@ -1,6 +1,6 @@
 # 仅在 fork 仓库自动构建并发布 GitHub Release，与官方 AdguardTeam/AdGuardHome CI 隔离。
 #
-# 触发：推送符合 SemVer 的 tag（v*，例如 v1.0.0）。
+# 触发：推送符合 SemVer 的 tag（v*，例如 v0.1.0）。
 # 请将两个 job 里的 github.repository 比较值改为你自己的「所有者/仓库名」。
 #
 # 官方仓库即使合并本文件也不会执行发布（repository 判断为假）；官方仍使用原有 build.yml 等流程。
@@ -99,7 +99,7 @@
         'VERSION_DOWNLOAD_URL': 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}'
         'ANNOUNCEMENT_URL': 'https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}'
         'UPDATE_INDEX_URL': 'https://github.com/${{ github.repository }}/releases/latest/download/version.json'
-      'run': 'make -e CLIENT_DIR=client_v2 SIGN=0 VERBOSE=1 CHANNEL=release deps build-release'
+      'run': 'make -e CLIENT_DIR=client_v2 SIGN=0 VERBOSE=1 CHANNEL=release deps build-release pack-release'
     - 'name': 'Set up QEMU'
       'uses': 'docker/setup-qemu-action@v3'
     - 'name': 'Set up Docker Buildx'
@@ -122,7 +122,7 @@
       'with':
         'tag_name': '${{ github.ref_name }}'
         'name': '${{ github.ref_name }}'
-        # Prefer curated notes under docs/release/<tag>.md (e.g. v1.0.0.md).
+        # Prefer curated notes under docs/release/<tag>.md (e.g. v0.1.0.md).
         'body_path': 'docs/release/${{ github.ref_name }}.md'
         'generate_release_notes': false
         'files': |

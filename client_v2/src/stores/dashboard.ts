@@ -1,7 +1,8 @@
 import { createStore } from 'solid-js/store';
 import { untrack } from 'solid-js';
-import { STANDARD_DNS_PORT, STANDARD_WEB_PORT } from 'panel/helpers/constants';
+import { STANDARD_DNS_PORT, STANDARD_WEB_PORT, THEMES } from 'panel/helpers/constants';
 import { areEqualVersions } from 'panel/helpers/version';
+import { getBrowserLanguage, isLang } from 'panel/helpers/helpers';
 import {
     getStatusUrl,
     getVersionJson,
@@ -16,6 +17,7 @@ import type { ServerStatus } from 'panel/api/model/serverStatus';
 import type { VersionInfo } from 'panel/api/model/versionInfo';
 import type { Clients } from 'panel/api/model/clients';
 import type { ProfileInfo } from 'panel/api/model/profileInfo';
+import type { Lang } from 'panel/api/model/lang';
 import intl from 'panel/common/intl';
 import { addErrorToast, addSuccessToast, addNoticeToast } from './toasts';
 import { getTlsStatus } from './encryption';
@@ -29,6 +31,7 @@ type DashboardState = {
     isCoreRunning: boolean;
     processingVersion: boolean;
     processingClients: boolean;
+    clientsInitialized: boolean;
     processingUpdate: boolean;
     processingProfile: boolean;
     protectionEnabled: boolean;
@@ -45,6 +48,7 @@ type DashboardState = {
     name: string;
     theme: string | undefined;
     checkUpdateFlag: boolean;
+    versionCheckFailed: boolean;
     announcementUrl: string;
     newVersion: string;
     canAutoUpdate: boolean;
@@ -57,6 +61,7 @@ const initialState: DashboardState = {
     isCoreRunning: true,
     processingVersion: true,
     processingClients: true,
+    clientsInitialized: false,
     processingUpdate: false,
     processingProfile: true,
     protectionEnabled: false,
@@ -73,6 +78,7 @@ const initialState: DashboardState = {
     name: '',
     theme: undefined,
     checkUpdateFlag: false,
+    versionCheckFailed: false,
     announcementUrl: '',
     newVersion: '',
     canAutoUpdate: false,
@@ -90,6 +96,13 @@ const rmTimeout = (t: ReturnType<typeof setTimeout> | null): null => {
     return null;
 };
 
+/** Fetches the server status without redirecting to the login page on 401. */
+const fetchStatus = (): Promise<ServerStatus> =>
+    customFetch<ServerStatus>(getStatusUrl(), {
+        method: 'GET',
+        skipAuthRedirect: true,
+    });
+
 const checkStatus = async (
     handleRequestSuccess: (response: { status: number; data: ServerStatus }) => void,
     handleRequestError: () => void,
@@ -100,10 +113,7 @@ const checkStatus = async (
         return;
     }
     try {
-        const data = await customFetch<ServerStatus>(getStatusUrl(), {
-            method: 'GET',
-            skipAuthRedirect: true,
-        });
+        const data = await fetchStatus();
         statusTimeout = rmTimeout(statusTimeout);
         handleRequestSuccess({ status: 200, data });
         if (data.running === false) {
@@ -131,7 +141,7 @@ export const getDnsStatus = async () => {
     setState('processing', true);
 
     const handleRequestError = () => {
-        addErrorToast({ error: 'dns_status_error' });
+        addErrorToast({ error: intl.getMessage('dns_status_error') });
         setState('processing', false);
         window.location.reload();
     };
@@ -156,7 +166,8 @@ export const getDnsStatus = async () => {
             });
             getVersion();
             getTlsStatus();
-            getProfile();
+            // The store wrapper, not the raw API call: it saves name and theme.
+            getProfileData();
         } else {
             setState('isCoreRunning', runningStatus);
         }
@@ -169,9 +180,30 @@ export const getDnsStatus = async () => {
     }
 };
 
+/**
+ * Refreshes the DNS addresses and ports without touching `processing`, the
+ * version, TLS status, or the profile, and keeps the previous values on
+ * failure.  Used after settings that change the addresses, e.g. encryption.
+ */
+export const refreshDnsStatus = async (): Promise<void> => {
+    try {
+        const dnsStatus = await fetchStatus();
+        if (!dnsStatus || dnsStatus.running !== true) {
+            return;
+        }
+        setState({
+            dnsPort: dnsStatus.dns_port,
+            dnsAddresses: dnsStatus.dns_addresses || [],
+            httpPort: dnsStatus.http_port,
+        });
+    } catch {
+        // A background refresh must not interrupt the UI: keep the old values.
+    }
+};
+
 export const getTimerStatus = async () => {
     const handleRequestError = () => {
-        addErrorToast({ error: 'dns_status_error' });
+        addErrorToast({ error: intl.getMessage('dns_status_error') });
         setState('processing', false);
         window.location.reload();
     };
@@ -213,20 +245,27 @@ export const getVersion = async (recheck = false) => {
                 isUpdateAvailable: true,
                 processingVersion: false,
                 checkUpdateFlag: !data.disabled,
+                versionCheckFailed: false,
             });
         } else {
-            setState({ processingVersion: false, checkUpdateFlag: data ? !data.disabled : false });
+            setState({
+                processingVersion: false,
+                checkUpdateFlag: data ? !data.disabled : false,
+                versionCheckFailed: false,
+            });
         }
-        if (recheck) {
-            if (data && !areEqualVersions(currentVersion, data.new_version)) {
+        if (recheck && data && !data.disabled) {
+            if (!areEqualVersions(currentVersion, data.new_version)) {
                 addSuccessToast(intl.getMessage('updates_checked'));
             } else {
                 addSuccessToast(intl.getMessage('updates_version_equal'));
             }
         }
     } catch {
-        addErrorToast({ error: 'version_request_error' });
-        setState('processingVersion', false);
+        addErrorToast({ error: intl.getMessage('version_request_error') });
+        // A failed check does not tell us whether updates are disabled, so keep
+        // the retry control available and leave `checkUpdateFlag` unchanged.
+        setState({ processingVersion: false, versionCheckFailed: true });
     }
 };
 
@@ -291,12 +330,29 @@ export const getClients = async () => {
             autoClients: sortClients(data.auto_clients || []),
             supportedTags: data.supported_tags || [],
             processingClients: false,
+            clientsInitialized: true,
         });
     } catch (error) {
         addErrorToast({ error });
-        setState('processingClients', false);
+        setState({ processingClients: false, clientsInitialized: true });
     }
 };
+
+/**
+ * An installation that never selected a language returns an empty one in the
+ * profile, but the API accepts only supported codes.  Fall back to the
+ * language the UI is showing.
+ */
+const getSupportedLanguage = (lang: string): Lang => (isLang(lang) ? lang : getBrowserLanguage());
+
+/**
+ * The update API requires one of {@link THEMES}, but a server may return an
+ * empty or null theme, which is sent back as is if spread into the payload.
+ */
+const getSupportedTheme = (theme: string | null | undefined): ProfileInfo['theme'] =>
+    theme === THEMES.auto || theme === THEMES.dark || theme === THEMES.light
+        ? theme
+        : THEMES.auto;
 
 export const getProfileData = async () => {
     setState('processingProfile', true);
@@ -304,7 +360,12 @@ export const getProfileData = async () => {
         const profile: ProfileInfo = await getProfile();
         setState({
             name: profile.name,
-            theme: profile.theme,
+            // A userless install (auth disabled or GL-iNet) has no operator
+            // theme: the profile only echoes the server config default, which
+            // would overwrite the guest's choice stored in `localStorage` on
+            // every load.  Keep the store theme unset for guests so that `App`
+            // falls back to `getTheme()`.
+            theme: profile.name ? getSupportedTheme(profile.theme) : undefined,
             processingProfile: false,
         });
     } catch (error) {
@@ -313,11 +374,21 @@ export const getProfileData = async () => {
     }
 };
 
+/**
+ * Sends the profile with only the fields the update API requires and accepts.
+ */
+const saveProfile = async (profile: ProfileInfo): Promise<void> => {
+    await updateProfile({
+        name: profile.name,
+        language: getSupportedLanguage(profile.language),
+        theme: getSupportedTheme(profile.theme),
+    });
+};
+
 export const changeLanguage = async (lang: ProfileInfo['language']) => {
     try {
         const profile = await getProfile();
-        profile.language = lang;
-        await updateProfile(profile);
+        await saveProfile({ ...profile, language: lang });
         setState('language', lang);
     } catch (error) {
         addErrorToast({ error });
@@ -327,8 +398,7 @@ export const changeLanguage = async (lang: ProfileInfo['language']) => {
 export const changeTheme = async (theme: ProfileInfo['theme']) => {
     try {
         const profile = await getProfile();
-        profile.theme = theme;
-        await updateProfile(profile);
+        await saveProfile({ ...profile, theme });
         setState('theme', theme);
     } catch (error) {
         addErrorToast({ error });

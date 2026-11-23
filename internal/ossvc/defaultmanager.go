@@ -11,6 +11,7 @@ import (
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/AdguardTeam/golibs/osutil/executil"
+	"github.com/AdguardTeam/golibs/timeutil"
 	"github.com/fcchbjm/AdGuardHome/internal/aghos"
 	"github.com/kardianos/service"
 )
@@ -20,6 +21,7 @@ import (
 // manager is the implementation of [Manager] that uses [service.Service].
 type manager struct {
 	logger        *slog.Logger
+	clock         timeutil.Clock
 	cmdCons       executil.CommandConstructor
 	isOpenWrt     bool
 	isUnixSystemV bool
@@ -35,6 +37,7 @@ func newManager(ctx context.Context, conf *ManagerConfig) (mgr *manager) {
 
 	return &manager{
 		logger:        conf.Logger,
+		clock:         conf.Clock,
 		cmdCons:       conf.CommandConstructor,
 		isOpenWrt:     aghos.IsOpenWrt(),
 		isUnixSystemV: service.Platform() == "unix-systemv",
@@ -139,7 +142,7 @@ func (m *manager) install(ctx context.Context, action *ActionInstall) (err error
 		WorkingDirectory: action.WorkingDirectory,
 		Arguments:        action.Arguments,
 	}
-	ConfigureServiceOptions(conf, action.Version)
+	ConfigureServiceOptions(conf, m.clock.Now(), action.Version)
 
 	s, err := service.New(emptyInterface{}, conf)
 	if err != nil {
@@ -312,13 +315,16 @@ func (m *manager) runInitdCommand(
 	action string,
 ) (err error) {
 	confPath := filepath.Join("/etc", "init.d", serviceName)
-	// Pass the script and action as a single string argument.
+
+	// NOTE: kardianos/service on System V sets init script file permissions to
+	// 0755, as it is required by OpenWrt.
+	//
+	// See https://github.com/kardianos/service/blob/v1.2.4/service_sysv_linux.go#L101-L103
+	// and https://openwrt.org/docs/techref/initscripts.
 	return executil.RunWithPeek(
 		ctx,
 		m.cmdCons,
 		aghos.MaxCmdOutputSize,
-		"sh",
-		"-c",
 		confPath,
 		action,
 	)

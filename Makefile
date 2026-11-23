@@ -20,12 +20,11 @@ VERBOSE.MACRO = $${VERBOSE:-0}
 
 CHANNEL = development
 CLIENT_DIR = client_v2
-DEPLOY_SCRIPT_PATH = not/a/real/path
 DIST_DIR = dist
 GOAMD64 = v1
 GOPROXY = https://proxy.golang.org|direct
 GOTELEMETRY = off
-GOTOOLCHAIN = go1.26.5
+GOTOOLCHAIN = go1.27.4
 GPG_KEY = devteam@adguard.com
 GPG_KEY_PASSPHRASE = not-a-real-password
 NPM = npm
@@ -34,10 +33,7 @@ NPM_INSTALL_FLAGS = $(NPM_FLAGS) --quiet --no-progress
 RACE = 0
 REVISION = $${REVISION:-$$(git rev-parse --short HEAD)}
 SIGN = 1
-SIGNER_API_KEY = not-a-real-key
 VERSION = v0.0.0
-
-NEXTAPI = 0
 
 # Macros for the build-release target.  If FRONTEND_PREBUILT is 0, the default,
 # the macro $(BUILD_RELEASE_DEPS_$(FRONTEND_PREBUILT)) expands into
@@ -56,7 +52,6 @@ BUILD_RELEASE_DEPS_1 = go-deps
 # needed.
 ENV = env \
 	CHANNEL='$(CHANNEL)' \
-	DEPLOY_SCRIPT_PATH='$(DEPLOY_SCRIPT_PATH)' \
 	DIST_DIR='$(DIST_DIR)' \
 	GO="$(GO.MACRO)" \
 	GOAMD64='$(GOAMD64)' \
@@ -65,12 +60,10 @@ ENV = env \
 	GOTOOLCHAIN='$(GOTOOLCHAIN)' \
 	GPG_KEY='$(GPG_KEY)' \
 	GPG_KEY_PASSPHRASE='$(GPG_KEY_PASSPHRASE)' \
-	NEXTAPI='$(NEXTAPI)' \
 	PATH="$${PWD}/bin:$$("$(GO.MACRO)" env GOPATH)/bin:$${PATH}" \
 	RACE='$(RACE)' \
 	REVISION="$(REVISION)" \
 	SIGN='$(SIGN)' \
-	SIGNER_API_KEY='$(SIGNER_API_KEY)' \
 	VERBOSE="$(VERBOSE.MACRO)" \
 	VERSION="$(VERSION)" \
 
@@ -102,9 +95,10 @@ test: js-test go-test
 .PHONY: build-docker
 build-docker: ; $(ENV) "$(SHELL)" ./scripts/make/build-docker.sh
 
-.PHONY: build-release
+.PHONY: build-release pack-release
 build-release: $(BUILD_RELEASE_DEPS_$(FRONTEND_PREBUILT))
 	$(ENV) "$(SHELL)" ./scripts/make/build-release.sh
+pack-release:  ; $(ENV) "$(SHELL)" ./scripts/make/pack-release.sh
 
 .PHONY: js-build js-deps js-typecheck js-lint js-test js-test-e2e
 js-build:     ; $(NPM) $(NPM_FLAGS) run build-prod

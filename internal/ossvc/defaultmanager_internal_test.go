@@ -1,16 +1,63 @@
 package ossvc
 
 import (
+	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/osutil/executil"
 	"github.com/AdguardTeam/golibs/testutil"
+	"github.com/AdguardTeam/golibs/testutil/fakeos/fakeexec"
+	"github.com/AdguardTeam/golibs/timeutil"
 	"github.com/fcchbjm/AdGuardHome/internal/aghos"
 	"github.com/kardianos/service"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestManager_RunInitdCommand(t *testing.T) {
+	t.Parallel()
+
+	wantPath := filepath.Join("/etc", "init.d", testServiceName)
+
+	actions := []string{"status", "start", "stop", "restart", "enable", "disable"}
+
+	for _, action := range actions {
+		t.Run(action, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				gotPath string
+				gotArgs []string
+			)
+			onNew := func(
+				_ context.Context,
+				conf *executil.CommandConfig,
+			) (cmd executil.Command, err error) {
+				gotPath = conf.Path
+				gotArgs = conf.Args
+
+				return executil.EmptyCommand{}, nil
+			}
+
+			m := &manager{
+				cmdCons: &fakeexec.CommandConstructor{OnNew: onNew},
+			}
+
+			ctx := testutil.ContextWithTimeout(t, testTimeout)
+			err := m.runInitdCommand(ctx, testServiceName, action)
+			require.NoError(t, err)
+
+			assert.Equal(t, wantPath, gotPath)
+			assert.Equal(t, []string{action}, gotArgs)
+		})
+	}
+}
+
+// testClock is a test clock used for tests.
+var testClock = timeutil.SystemClock{}
 
 func TestManager_Status(t *testing.T) {
 	const invalidSvcStatus = statusRestartOnFail + 1
@@ -18,6 +65,7 @@ func TestManager_Status(t *testing.T) {
 	svc := newTestServiceWithSystem(t)
 
 	m := &manager{
+		clock:         testClock,
 		logger:        testLogger,
 		cmdCons:       executil.EmptyCommandConstructor{},
 		isOpenWrt:     aghos.IsOpenWrt(),
@@ -96,6 +144,7 @@ func TestManager_Status_unixSystemV(t *testing.T) {
 	}
 
 	m := &manager{
+		clock:         testClock,
 		logger:        testLogger,
 		cmdCons:       executil.EmptyCommandConstructor{},
 		isOpenWrt:     aghos.IsOpenWrt(),
@@ -133,6 +182,7 @@ func TestManager_Install(t *testing.T) {
 	svc := newTestServiceWithSystem(t)
 
 	m := &manager{
+		clock:         testClock,
 		logger:        testLogger,
 		cmdCons:       executil.EmptyCommandConstructor{},
 		isOpenWrt:     false,
@@ -175,6 +225,7 @@ func TestManager_Install_unixSystemV(t *testing.T) {
 	}
 
 	m := &manager{
+		clock:         testClock,
 		logger:        testLogger,
 		cmdCons:       executil.EmptyCommandConstructor{},
 		isOpenWrt:     aghos.IsOpenWrt(),
