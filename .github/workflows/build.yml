@@ -33,7 +33,7 @@
           - 'windows-latest'
     'steps':
       - 'name': 'Checkout'
-        'uses': 'actions/checkout@v2'
+        'uses': 'actions/checkout@v7'
         'with':
           'fetch-depth': 0
           # Set to false to avoid  GITHUB_TOKEN leaking.
@@ -41,33 +41,30 @@
           # See https://github.com/actions/checkout/issues/485#issuecomment-934422611.
           'persist-credentials': false
       - 'name': 'Set up Go'
-        'uses': 'actions/setup-go@v3'
+        # Don't add a manual actions/cache step for ~/go/pkg/mod: setup-go
+        # already caches it (plus the build cache) and restores it first.
+        # Restoring the same path twice makes GNU tar fail with
+        # "Cannot open: File exists" on Go's read-only module directories.
+        'uses': 'actions/setup-go@v7'
         'with':
           'go-version': '${{ env.GO_VERSION }}'
       - 'name': 'Set up Node'
-        'uses': 'actions/setup-node@v1'
+        'uses': 'actions/setup-node@v7'
         'with':
           'node-version': '${{ env.NODE_VERSION }}'
-      - 'name': 'Set up Go modules cache'
-        'uses': 'actions/cache@v4'
-        'with':
-          'path': '~/go/pkg/mod'
-          'key': "${{ runner.os }}-go-${{ hashFiles('go.sum') }}"
-          'restore-keys': '${{ runner.os }}-go-'
-      - 'name': 'Get npm cache directory'
-        'id': 'npm-cache'
-        'run': 'echo "::set-output name=dir::$( npm config get cache )"'
       - 'name': 'Set up npm cache'
-        'uses': 'actions/cache@v4'
+        'uses': 'actions/cache@v6'
         'with':
-          'path': '${{ steps.npm-cache.outputs.dir }}'
+          # Use the default npm cache directory directly instead of querying it
+          # with a step, since the set-output command is deprecated.
+          'path': '~/.npm'
           'key': "${{ runner.os }}-node-${{ hashFiles('client_v2/package-lock.json') }}"
           'restore-keys': '${{ runner.os }}-node-'
       - 'name': 'Run tests'
         'shell': 'bash'
         'run': 'make CLIENT_DIR=client_v2 VERBOSE=1 deps test go-bench go-fuzz'
       - 'name': 'Upload coverage reports to Codecov'
-        'uses': 'codecov/codecov-action@v5'
+        'uses': 'codecov/codecov-action@v7'
         'if': "success() && matrix.os == 'ubuntu-latest'"
         'with':
           'token': '${{ secrets.CODECOV_TOKEN }}'
@@ -80,7 +77,7 @@
       'contents': 'read'
     'steps':
       - 'name': 'Checkout'
-        'uses': 'actions/checkout@v2'
+        'uses': 'actions/checkout@v7'
         'with':
           'fetch-depth': 0
           # Set to false to avoid  GITHUB_TOKEN leaking.
@@ -88,38 +85,33 @@
           # See https://github.com/actions/checkout/issues/485#issuecomment-934422611.
           'persist-credentials': false
       - 'name': 'Set up Go'
-        'uses': 'actions/setup-go@v3'
+        # Don't add a manual actions/cache step for ~/go/pkg/mod: setup-go
+        # already caches it (plus the build cache) and restores it first.
+        # Restoring the same path twice makes GNU tar fail with
+        # "Cannot open: File exists" on Go's read-only module directories.
+        'uses': 'actions/setup-go@v7'
         'with':
           'go-version': '${{ env.GO_VERSION }}'
       - 'name': 'Set up Node'
-        'uses': 'actions/setup-node@v1'
+        'uses': 'actions/setup-node@v7'
         'with':
           'node-version': '${{ env.NODE_VERSION }}'
-      - 'name': 'Set up Go modules cache'
-        'uses': 'actions/cache@v4'
-        'with':
-          'path': '~/go/pkg/mod'
-          'key': "${{ runner.os }}-go-${{ hashFiles('go.sum') }}"
-          'restore-keys': '${{ runner.os }}-go-'
-      - 'name': 'Get npm cache directory'
-        'id': 'npm-cache'
-        'run': 'echo "::set-output name=dir::$(npm config get cache)"'
       - 'name': 'Set up npm cache'
-        'uses': 'actions/cache@v4'
+        'uses': 'actions/cache@v6'
         'with':
-          'path': '${{ steps.npm-cache.outputs.dir }}'
+          'path': '~/.npm'
           'key': "${{ runner.os }}-node-${{ hashFiles('client_v2/package-lock.json') }}"
           'restore-keys': '${{ runner.os }}-node-'
       - 'name': 'Set up Snapcraft'
         'run': 'sudo snap install snapcraft --classic'
       - 'name': 'Set up QEMU'
-        'uses': 'docker/setup-qemu-action@v3'
+        'uses': 'docker/setup-qemu-action@v4'
       - 'name': 'Set up Docker Buildx'
-        'uses': 'docker/setup-buildx-action@v3'
-        'with':
-          'install': true
+        # Don't set the deprecated "install" input: build-docker.sh already calls
+        # "docker buildx build" explicitly.
+        'uses': 'docker/setup-buildx-action@v4'
       - 'name': 'Run snapshot build'
-        # Set a custom version string, since the checkout@v2 action does not seem
+        # Set a custom version string, since the checkout action does not seem
         # to know about the master branch, while the version script uses it to
         # count the number of commits within the branch.
         'run': 'make SIGN=0 VERBOSE=1 VERSION="v0.0.0-github" build-release build-docker'
