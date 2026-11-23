@@ -64,8 +64,8 @@ func (c *Checker) findInCache(
 
 	i := 0
 	for _, hash := range hashes {
-		data := c.cache.Get(hash[:prefixLen])
-		if data == nil {
+		data, hit := c.cache.Get(hash[:prefixLen])
+		if !hit {
 			hashes[i] = hash
 			i++
 
@@ -108,8 +108,8 @@ func (c *Checker) storeInCache(ctx context.Context, hashesToRequest, respHashes 
 	}
 
 	for _, hash := range hashesToRequest {
-		val := c.cache.Get(hash[:prefixLen])
-		if val == nil {
+		_, ok := c.cache.Get(hash[:prefixLen])
+		if !ok {
 			var pref prefix
 			copy(pref[:], hash[:])
 

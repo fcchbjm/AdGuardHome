@@ -2,10 +2,8 @@ package arpdb
 
 import (
 	"context"
-	"io/fs"
 	"net"
 	"net/netip"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -20,9 +18,6 @@ import (
 
 // testTimeout is a common timeout for tests.
 const testTimeout = 1 * time.Second
-
-// testdata is the filesystem containing data for testing the package.
-var testdata fs.FS = os.DirFS("./testdata")
 
 func Test_New(t *testing.T) {
 	var a Interface

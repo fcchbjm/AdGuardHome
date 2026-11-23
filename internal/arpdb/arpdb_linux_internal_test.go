@@ -3,8 +3,10 @@
 package arpdb
 
 import (
+	"io/fs"
 	"net"
 	"net/netip"
+	"os"
 	"sync"
 	"testing"
 	"testing/fstest"
@@ -15,6 +17,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// testdata is the filesystem containing data for testing the package.  It is
+// only used by the Linux tests, so it lives here to avoid unused-variable
+// reports on the other platforms.
+var testdata fs.FS = os.DirFS("./testdata")
 
 const arpAOutputWrt = `
 IP address    HW type     Flags       HW address            Mask     Device

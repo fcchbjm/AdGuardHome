@@ -47,14 +47,6 @@ type DNSConfig struct {
 	// empty slice for this field makes Proxy not trust any address.
 	TrustedProxies []netutil.Prefix `yaml:"trusted_proxies"`
 
-	// TCPProxyProtocolV2Enabled defines if plain DNS-over-TCP listeners require
-	// Proxy Protocol v2 headers.
-	TCPProxyProtocolV2Enabled bool `yaml:"tcp-proxy-protocol-v2"`
-
-	// TLSProxyProtocolV2Enabled defines if DNS-over-TLS listeners require Proxy
-	// Protocol v2 headers before TLS handshake.
-	TLSProxyProtocolV2Enabled bool `yaml:"tls-proxy-protocol-v2"`
-
 	// AllowedClients is the slice of IP addresses, CIDR networks, and ClientIDs
 	// of allowed clients.  If not empty, only these clients are allowed, and
 	// DisallowedClients are ignored.
@@ -141,6 +133,14 @@ type DNSConfig struct {
 
 	// Port is the port to listen on.
 	Port uint16 `yaml:"port"`
+
+	// TCPProxyProtocolV2Enabled defines if plain DNS-over-TCP listeners require
+	// Proxy Protocol v2 headers.
+	TCPProxyProtocolV2Enabled bool `yaml:"tcp-proxy-protocol-v2"`
+
+	// TLSProxyProtocolV2Enabled defines if DNS-over-TLS listeners require Proxy
+	// Protocol v2 headers before TLS handshake.
+	TLSProxyProtocolV2Enabled bool `yaml:"tls-proxy-protocol-v2"`
 
 	// AAAADisabled, if true, respond with an empty answer to all AAAA
 	// requests.

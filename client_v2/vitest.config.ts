@@ -6,7 +6,10 @@ import { defineConfig } from 'vitest/config';
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-    plugins: [solid()],
+    // Disable Solid's HMR wrapper in tests: Vitest never reloads modules, and
+    // the injected "/@solid-refresh" virtual id breaks on Windows, where
+    // Node resolves it into "file:///@solid-refresh".
+    plugins: [solid({ hot: false })],
     resolve: {
         conditions: ['development', 'browser'],
         // Force Vite to use a single solid-js instance across all deps,

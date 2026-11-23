@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AdguardTeam/golibs/cache"
+	"github.com/AdguardTeam/golibs/cache/bytecache"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/AdguardTeam/urlfilter"
 	"github.com/AdguardTeam/urlfilter/filterlist"
@@ -100,7 +100,7 @@ type Default struct {
 	engine *urlfilter.DNSEngine
 
 	// cache stores safe search filtering results.
-	cache cache.Cache
+	cache bytecache.Interface
 
 	// cacheTTL is the Time to Live duration for cached items.
 	cacheTTL time.Duration
@@ -112,9 +112,8 @@ func NewDefault(ctx context.Context, conf *DefaultConfig) (ss *Default, err erro
 	ss = &Default{
 		logger: conf.Logger,
 		mu:     &sync.RWMutex{},
-		cache: cache.New(cache.Config{
-			EnableLRU: true,
-			MaxSize:   conf.CacheSize,
+		cache: bytecache.NewDefault(&bytecache.DefaultConfig{
+			MaxSize: datasize.ByteSize(conf.CacheSize),
 		}),
 		cacheTTL: conf.CacheTTL,
 	}
@@ -297,7 +296,7 @@ func (ss *Default) setCacheResult(
 	}
 
 	val := buf.Bytes()
-	_ = ss.cache.Set([]byte(dns.Type(qtype).String()+" "+host), val)
+	ss.cache.Set([]byte(dns.Type(qtype).String()+" "+host), val)
 
 	ss.logger.DebugContext(
 		ctx,
@@ -318,8 +317,8 @@ func (ss *Default) getCachedResult(
 ) (res filtering.Result, ok bool) {
 	res = filtering.Result{}
 
-	data := ss.cache.Get([]byte(dns.Type(qtype).String() + " " + host))
-	if data == nil {
+	data, hit := ss.cache.Get([]byte(dns.Type(qtype).String() + " " + host))
+	if !hit {
 		return res, false
 	}
 

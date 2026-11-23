@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'node:url';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import { CleanWebpackPlugin } from 'clean-webpack-plugin';
 import CopyPlugin from 'copy-webpack-plugin';
@@ -7,7 +8,10 @@ import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import { BUILD_ENVS } from './constants.js';
 import { THEME_BOOTSTRAP_TEMPLATE_PARAMETERS } from './scripts/theme-bootstrap-template.js';
 
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
+// Use fileURLToPath so that the directory is correct on Windows too, where
+// the URL pathname looks like "/D:/..." and would otherwise be resolved into
+// "D:\D:\...".
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const RESOURCES_PATH = __dirname;
 const ENTRY_MAIN = path.resolve(RESOURCES_PATH, 'src/index.tsx');

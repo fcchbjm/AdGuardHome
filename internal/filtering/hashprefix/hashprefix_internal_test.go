@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AdguardTeam/golibs/cache"
+	"github.com/AdguardTeam/golibs/cache/bytecache"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/AdguardTeam/golibs/testutil"
 	"github.com/fcchbjm/AdGuardHome/internal/aghtest"
@@ -108,8 +108,7 @@ func TestChecker_storeInCache(t *testing.T) {
 		CacheTime: cacheTime,
 	})
 
-	conf := cache.Config{}
-	c.cache = cache.New(conf)
+	c.cache = bytecache.NewDefault(&bytecache.DefaultConfig{})
 
 	// store in cache hashes for "3.sub.host.com" and "host.com"
 	//  and empty data for hash-prefix for "sub.host.com"
@@ -166,7 +165,7 @@ func TestChecker_storeInCache(t *testing.T) {
 		CacheTime: cacheTime,
 	})
 
-	c.cache = cache.New(cache.Config{})
+	c.cache = bytecache.NewDefault(&bytecache.DefaultConfig{})
 
 	hashes = []hostnameHash{}
 	hash = sha256.Sum256([]byte("sub.host.com"))
@@ -232,8 +231,8 @@ func TestChecker_Check(t *testing.T) {
 			}
 
 			// Check the cache state, check the response is now cached.
-			assert.Equal(t, 1, c.cache.Stats().Count)
-			assert.Equal(t, hits, c.cache.Stats().Hit)
+			assert.Equal(t, uint64(1), c.cache.Stats().Count)
+			assert.Equal(t, uint64(hits), c.cache.Stats().Hit)
 
 			// There was one request to an upstream.
 			assert.Equal(t, 1, numReq)
@@ -249,8 +248,8 @@ func TestChecker_Check(t *testing.T) {
 			}
 
 			// Check the cache state, it should've been used.
-			assert.Equal(t, 1, c.cache.Stats().Count)
-			assert.Equal(t, hits+1, c.cache.Stats().Hit)
+			assert.Equal(t, uint64(1), c.cache.Stats().Count)
+			assert.Equal(t, uint64(hits+1), c.cache.Stats().Hit)
 
 			// Check that there were no additional requests.
 			assert.Equal(t, 1, numReq)

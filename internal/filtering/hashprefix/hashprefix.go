@@ -11,10 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AdguardTeam/golibs/cache"
+	"github.com/AdguardTeam/golibs/cache/bytecache"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/AdguardTeam/golibs/netutil"
 	"github.com/AdguardTeam/golibs/stringutil"
+	"github.com/c2h5oh/datasize"
 	"github.com/fcchbjm/dnsproxy/upstream"
 	"github.com/miekg/dns"
 	"golang.org/x/net/publicsuffix"
@@ -79,7 +80,7 @@ type Checker struct {
 	upstream upstream.Upstream
 
 	// cache stores hostname hashes.
-	cache cache.Cache
+	cache bytecache.Interface
 
 	// txtSuffix is the TXT suffix for DNS request.
 	txtSuffix string
@@ -93,9 +94,8 @@ func New(conf *Config) (c *Checker) {
 	return &Checker{
 		logger:   conf.Logger,
 		upstream: conf.Upstream,
-		cache: cache.New(cache.Config{
-			EnableLRU: true,
-			MaxSize:   conf.CacheSize,
+		cache: bytecache.NewDefault(&bytecache.DefaultConfig{
+			MaxSize: datasize.ByteSize(conf.CacheSize),
 		}),
 		txtSuffix: conf.TXTSuffix,
 		cacheTime: conf.CacheTime,
